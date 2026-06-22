@@ -311,10 +311,12 @@ npm run build
 ## Deploy to Vercel
 
 1. Import [github.com/Konseptt/synapse-research](https://github.com/Konseptt/synapse-research) on [vercel.com/new](https://vercel.com/new)
-2. Set **Root Directory** = `frontend`
+2. Set **Root Directory** = `frontend` (**required** — otherwise you get `404: NOT_FOUND`)
 3. Add **Neon Postgres** (or any Postgres) → `DATABASE_URL`
 4. Set `NVIDIA_API_KEY`, `NCBI_EMAIL`, and other vars from `.env.example`
 5. Deploy — `vercel-build` runs `drizzle-kit push` then `next build`
+
+> **Seeing `404: NOT_FOUND`?** Vercel is building the wrong folder. Open Project Settings → Build & Deployment → Root Directory → `frontend` → Save → Redeploy.
 
 For Redis-backed shared cache in production, add Upstash Redis and set `REDIS_URL`.
 
