@@ -1,0 +1,15 @@
+export const config = {
+  nvidiaApiKey: process.env.NVIDIA_API_KEY ?? "",
+  nvidiaBaseUrl: process.env.NVIDIA_BASE_URL ?? "https://integrate.api.nvidia.com/v1",
+  nvidiaModel: process.env.NVIDIA_MODEL ?? "meta/llama-3.1-8b-instruct",
+  nvidiaEmbeddingModel: process.env.NVIDIA_EMBEDDING_MODEL ?? "nvidia/nv-embedqa-e5-v5",
+  redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379/0",
+  jwtSecret: process.env.JWT_SECRET ?? "change-me-in-production",
+  authEnabled: process.env.AUTH_ENABLED === "true",
+  rateLimitPerMinute: Number(process.env.RATE_LIMIT_PER_MINUTE ?? 60),
+  pdfMaxSizeMb: Number(process.env.PDF_MAX_SIZE_MB ?? 25),
+  ncbiTool: process.env.NCBI_TOOL ?? "synapse",
+  ncbiEmail: process.env.NCBI_EMAIL ?? "dev@localhost",
+  pubmedMaxResults: Number(process.env.PUBMED_MAX_RESULTS ?? 30),
+  analysisStaleMs: Number(process.env.ANALYSIS_STALE_MS ?? 10 * 60 * 1000),
+} as const;
