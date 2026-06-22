@@ -5,12 +5,20 @@ import { decodeHtmlEntities } from "@/lib/analysis-utils";
 import type { PaperSummary } from "@/types/paper";
 import { cn } from "@/lib/utils";
 
+/** Score → text tone, so the ranking reads at a glance without shouting. */
+function scoreTone(score: number): string {
+  if (score >= 70) return "text-accent";
+  if (score >= 40) return "text-ink";
+  return "text-ink-faint";
+}
+
 interface PaperCardProps {
   paper: PaperSummary;
   selected?: boolean;
   compareSelected?: boolean;
   compact?: boolean;
   onClick?: () => void;
+  onPrefetch?: () => void;
   onToggleCompare?: () => void;
 }
 
@@ -20,12 +28,15 @@ export function PaperCard({
   compareSelected,
   compact,
   onClick,
+  onPrefetch,
   onToggleCompare,
 }: PaperCardProps) {
   const year = paper.publicationDate?.slice(0, 4);
 
   return (
     <div
+      onMouseEnter={onPrefetch}
+      onFocus={onPrefetch}
       className={cn(
         "w-full text-left transition-colors",
         compact ? "px-3 py-2.5" : "border-l-2 py-3 pl-3 pr-2",
@@ -70,11 +81,28 @@ export function PaperCard({
             {!compact && paper.evidenceScore != null && (
               <ScoreBadge score={paper.evidenceScore} />
             )}
+            {compact && paper.evidenceScore != null && (
+              <span
+                className={cn("shrink-0 text-xs font-semibold tabular-nums", scoreTone(paper.evidenceScore))}
+                title={`Research Evidence Rank: ${Math.round(paper.evidenceScore)}/100 — higher means stronger study design, larger samples, and a closer match to your question.`}
+              >
+                {Math.round(paper.evidenceScore)}
+              </span>
+            )}
           </div>
-          {(paper.journal || year) && (
-            <p className="mt-1 text-[0.625rem] text-ink-faint">
-              {[paper.journal, year].filter(Boolean).join(" · ")}
-            </p>
+          {(paper.evidenceTier || paper.journal || year) && (
+            <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+              {paper.evidenceTier && (
+                <span className="rounded-sm border border-rule bg-surface px-1.5 py-px text-[0.5625rem] font-medium uppercase tracking-wide text-ink-muted">
+                  {paper.evidenceTier}
+                </span>
+              )}
+              {(paper.journal || year) && (
+                <span className="text-[0.625rem] text-ink-faint">
+                  {[paper.journal, year].filter(Boolean).join(" · ")}
+                </span>
+              )}
+            </div>
           )}
           {!compact && paper.abstract && (
             <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-ink-muted">

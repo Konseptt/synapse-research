@@ -4,7 +4,7 @@ import {
   synthesizeSearchOverview,
   type OverviewPaperInput,
 } from "@/lib/ai/chains/search-overview";
-import { TTL, cacheKey, turboGet, turboSet } from "@/lib/cache/turbo-cache";
+import { TTL, cacheKey, turboGetAsync, turboSetAsync } from "@/lib/cache/turbo-cache";
 import { db } from "@/lib/db";
 import { paperAnalyses, papers } from "@/lib/db/schema";
 import { buildHeuristicOverview } from "@/lib/search/heuristic-overview";
@@ -34,19 +34,39 @@ export function buildFastOverview(
   return buildHeuristicOverview(query, paperSummaries);
 }
 
+/**
+ * Single-flight registry: when the server warms an overview and the client
+ * requests the same one moments later, both await the same in-progress LLM
+ * call instead of firing two.
+ */
+const inflight = new Map<string, Promise<SearchOverviewResponse>>();
+
 export async function buildSearchOverview(
   query: string,
   paperIds: string[],
   options?: { forceAi?: boolean },
 ): Promise<SearchOverviewResponse> {
-  const ids = paperIds.slice(0, MAX_SOURCES);
   const ck = overviewCacheKey(query, paperIds);
 
   if (!options?.forceAi) {
-    const cached = turboGet<SearchOverviewResponse>(ck);
+    const cached = await turboGetAsync<SearchOverviewResponse>(ck);
     if (cached?.generatedBy === "ai") return cached;
+    const running = inflight.get(ck);
+    if (running) return running;
   }
 
+  const job = computeAiOverview(query, paperIds.slice(0, MAX_SOURCES), ck).finally(() => {
+    if (inflight.get(ck) === job) inflight.delete(ck);
+  });
+  inflight.set(ck, job);
+  return job;
+}
+
+async function computeAiOverview(
+  query: string,
+  ids: string[],
+  ck: string,
+): Promise<SearchOverviewResponse> {
   if (ids.length === 0) {
     return buildHeuristicOverview(query, []);
   }
@@ -110,7 +130,7 @@ export async function buildSearchOverview(
       disclaimer: "This is research synthesis, not medical advice.",
       generatedBy: "ai",
     };
-    turboSet(ck, result, TTL.overview);
+    await turboSetAsync(ck, result, TTL.overview);
     return result;
   } catch (error) {
     console.warn("AI overview unavailable, using heuristic:", error);

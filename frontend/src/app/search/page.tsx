@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -20,7 +20,7 @@ import { SearchOverviewPanel } from "@/features/search/search-overview-panel";
 import { useAnalyzePaper } from "@/hooks/use-analyze-paper";
 import { usePaperQuery } from "@/hooks/use-paper-query";
 import { decodeHtmlEntities } from "@/lib/analysis-utils";
-import { searchPapers } from "@/lib/api/client";
+import { getPaper, searchPapers } from "@/lib/api/client";
 import { exportRisFile } from "@/lib/citations/format-citation";
 import { useSearchStore } from "@/stores/search-store";
 import { cn } from "@/lib/utils";
@@ -45,6 +45,7 @@ export default function SearchPage() {
     setChatPaperIds,
   } = useSearchStore();
 
+  const queryClient = useQueryClient();
   const [centerTab, setCenterTab] = useState<CenterTab>("study");
   const [mobileListOpen, setMobileListOpen] = useState(false);
   const [abstractOpen, setAbstractOpen] = useState(false);
@@ -58,12 +59,15 @@ export default function SearchPage() {
 
   const hasActiveSearch = submittedQuery.length > 2;
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch, isPlaceholderData } = useQuery({
     queryKey: ["search", submittedQuery, filters],
     queryFn: () => searchPapers(submittedQuery, filters as Record<string, string | number | undefined>),
     enabled: hasActiveSearch,
     staleTime: 10 * 60 * 1000,
     retry: 2,
+    // Keep the prior results on screen while the next query resolves, so a new
+    // search refines in place instead of flashing back to skeletons.
+    placeholderData: keepPreviousData,
   });
 
   const {
@@ -98,10 +102,8 @@ export default function SearchPage() {
     return selectedPaperId ? "selected" : "top";
   }, [chatPaperIds, comparePaperIds, topResultIds, selectedPaperId]);
 
-  const searchedAsHint = useMemo(() => {
-    if (!data?.searchedAs || data.searchedAs === submittedQuery) return null;
-    return data.searchedAs;
-  }, [data?.searchedAs, submittedQuery]);
+  const searchedAsHint =
+    data?.searchedAs && data.searchedAs !== submittedQuery ? data.searchedAs : null;
 
   const handleSearch = useCallback(
     (q: string) => {
@@ -124,6 +126,18 @@ export default function SearchPage() {
       setMobileListOpen(false);
     },
     [setSelectedPaperId],
+  );
+
+  // Warm the study detail on hover/focus so opening it from the list is instant.
+  const handlePrefetchPaper = useCallback(
+    (id: string) => {
+      void queryClient.prefetchQuery({
+        queryKey: ["paper", id],
+        queryFn: () => getPaper(id),
+        staleTime: 5 * 60 * 1000,
+      });
+    },
+    [queryClient],
   );
 
   const handleAnalyze = useCallback(
@@ -160,9 +174,13 @@ export default function SearchPage() {
     }
   }, [papers, selectedPaperId, setSelectedPaperId]);
 
-  useEffect(() => {
+  // Collapse the abstract whenever the selected study changes (e.g. j/k nav).
+  // Derived during render, not via an effect, to avoid a cascading render.
+  const [abstractPaperId, setAbstractPaperId] = useState(selectedPaperId);
+  if (selectedPaperId !== abstractPaperId) {
+    setAbstractPaperId(selectedPaperId);
     setAbstractOpen(false);
-  }, [selectedPaperId]);
+  }
 
   const resultsList = (
     <>
@@ -184,7 +202,12 @@ export default function SearchPage() {
       ) : papers.length === 0 ? (
         <p className="p-4 text-sm text-ink-muted">No studies matched. Try broader terms.</p>
       ) : (
-        <div className="divide-y divide-rule/70">
+        <div
+          className={cn(
+            "divide-y divide-rule/70 transition-opacity",
+            isPlaceholderData && "opacity-50",
+          )}
+        >
           {papers.map((paper) => (
             <PaperCard
               key={paper.id}
@@ -193,6 +216,7 @@ export default function SearchPage() {
               selected={paper.id === selectedPaperId}
               compareSelected={comparePaperIds.includes(paper.id)}
               onClick={() => handleSelectPaper(paper.id)}
+              onPrefetch={() => handlePrefetchPaper(paper.id)}
               onToggleCompare={() => toggleComparePaper(paper.id)}
             />
           ))}
@@ -223,7 +247,11 @@ export default function SearchPage() {
           <SearchBox value={query} onChange={setQuery} onSearch={handleSearch} />
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-faint">
             <span>
-              {isLoading ? "Searching…" : `${data?.total ?? 0} studies`}
+              {isLoading
+                ? "Searching…"
+                : isPlaceholderData
+                  ? "Refining…"
+                  : `${data?.total ?? 0} studies`}
               {submittedQuery && <> for &ldquo;{submittedQuery}&rdquo;</>}
             </span>
             {searchedAsHint && (

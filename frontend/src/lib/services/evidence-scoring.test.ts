@@ -20,6 +20,9 @@ describe("evidence scoring", () => {
         limitations: null,
         confidenceScore: 0.8,
         findings: ["Positive effect"],
+        plainSummary: null,
+        conflictOfInterest: null,
+        funding: null,
         status: "complete",
       },
     );
@@ -46,6 +49,9 @@ describe("evidence scoring", () => {
         limitations: "No control group",
         confidenceScore: null,
         findings: null,
+        plainSummary: null,
+        conflictOfInterest: null,
+        funding: null,
         status: "complete",
       },
     );

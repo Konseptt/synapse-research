@@ -10,6 +10,8 @@ export interface PaperSummary {
   journal: string | null;
   authors: string[] | null;
   evidenceScore: number | null;
+  /** Instant study-design classification from RER, e.g. "Meta-analysis", "Randomized trial". */
+  evidenceTier?: string | null;
   source: string;
 }
 

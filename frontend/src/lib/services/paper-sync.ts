@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { evidenceScores, papers } from "@/lib/db/schema";
@@ -10,68 +10,73 @@ function safeDate(date: Date | null): Date | null {
   return date;
 }
 
+/**
+ * Persist freshly fetched PubMed papers and return them as summaries with
+ * stable DB ids.
+ *
+ * Only brand-new PMIDs are written. A PubMed record for a given PMID is
+ * effectively immutable, so the previous implementation's per-search UPDATE of
+ * every existing row was pure churn — it added N write round-trips to the
+ * latency-critical search path for data that never changed. We now do at most
+ * one SELECT + one INSERT.
+ */
 export async function upsertPubMedPapers(results: PubMedPaper[]): Promise<PaperSummary[]> {
   if (results.length === 0) return [];
 
   const pubmedIds = results.map((r) => r.pubmedId).filter(Boolean);
   const existingRows = pubmedIds.length
-    ? await db.select().from(papers).where(inArray(papers.pubmedId, pubmedIds))
+    ? await db
+        .select({ id: papers.id, pubmedId: papers.pubmedId })
+        .from(papers)
+        .where(inArray(papers.pubmedId, pubmedIds))
     : [];
-  const byPubmed = new Map(existingRows.map((r) => [r.pubmedId, r]));
 
-  const toInsert: (typeof papers.$inferInsert)[] = [];
-  const updateOps: Promise<unknown>[] = [];
   const idByPubmed = new Map<string, string>();
-
-  for (const result of results) {
-    const pubDate = safeDate(result.publicationDate);
-    const existing = byPubmed.get(result.pubmedId);
-
-    if (existing) {
-      idByPubmed.set(result.pubmedId, existing.id);
-      updateOps.push(
-        db
-          .update(papers)
-          .set({
-            title: result.title,
-            abstract: result.abstract,
-            doi: result.doi,
-            authors: result.authors,
-            journal: result.journal,
-            publicationDate: pubDate,
-          })
-          .where(eq(papers.id, existing.id)),
-      );
-    } else {
-      toInsert.push({
-        title: result.title,
-        abstract: result.abstract,
-        doi: result.doi,
-        pubmedId: result.pubmedId,
-        authors: result.authors,
-        journal: result.journal,
-        publicationDate: pubDate,
-        source: "pubmed",
-      });
-    }
+  for (const row of existingRows) {
+    if (row.pubmedId) idByPubmed.set(row.pubmedId, row.id);
   }
+
+  const toInsert = results
+    .filter((r) => r.pubmedId && !idByPubmed.has(r.pubmedId))
+    .map((r) => ({
+      title: r.title,
+      abstract: r.abstract,
+      doi: r.doi,
+      pubmedId: r.pubmedId,
+      authors: r.authors,
+      journal: r.journal,
+      publicationDate: safeDate(r.publicationDate),
+      source: "pubmed",
+    }));
 
   if (toInsert.length > 0) {
     const inserted = await db
       .insert(papers)
       .values(toInsert)
+      .onConflictDoNothing({ target: papers.pubmedId })
       .returning({ id: papers.id, pubmedId: papers.pubmedId });
     for (const row of inserted) {
       if (row.pubmedId) idByPubmed.set(row.pubmedId, row.id);
     }
-  }
 
-  if (updateOps.length > 0) {
-    await Promise.all(updateOps);
+    // A concurrent search may have inserted the same PMID first; onConflict
+    // skips it so it is absent from `inserted`. Resolve those stragglers.
+    const unresolved = toInsert
+      .map((r) => r.pubmedId)
+      .filter((pid): pid is string => Boolean(pid) && !idByPubmed.has(pid));
+    if (unresolved.length > 0) {
+      const rows = await db
+        .select({ id: papers.id, pubmedId: papers.pubmedId })
+        .from(papers)
+        .where(inArray(papers.pubmedId, unresolved));
+      for (const row of rows) {
+        if (row.pubmedId) idByPubmed.set(row.pubmedId, row.id);
+      }
+    }
   }
 
   const paperIds = results
-    .map((r) => idByPubmed.get(r.pubmedId))
+    .map((r) => (r.pubmedId ? idByPubmed.get(r.pubmedId) : undefined))
     .filter((id): id is string => Boolean(id));
 
   const scoreRows =
@@ -83,20 +88,23 @@ export async function upsertPubMedPapers(results: PubMedPaper[]): Promise<PaperS
       : [];
   const scoreByPaper = new Map(scoreRows.map((s) => [s.paperId, s.score]));
 
-  return results.map((result) => {
-    const paperId = idByPubmed.get(result.pubmedId)!;
-    const pubDate = safeDate(result.publicationDate);
-    return {
-      id: paperId,
-      title: result.title,
-      abstract: result.abstract,
-      doi: result.doi,
-      pubmedId: result.pubmedId,
-      publicationDate: pubDate?.toISOString() ?? null,
-      journal: result.journal,
-      authors: result.authors,
-      evidenceScore: scoreByPaper.get(paperId) ?? null,
-      source: "pubmed",
-    };
-  });
+  return results
+    .map((result): PaperSummary | null => {
+      const paperId = result.pubmedId ? idByPubmed.get(result.pubmedId) : undefined;
+      if (!paperId) return null;
+      const pubDate = safeDate(result.publicationDate);
+      return {
+        id: paperId,
+        title: result.title,
+        abstract: result.abstract,
+        doi: result.doi,
+        pubmedId: result.pubmedId,
+        publicationDate: pubDate?.toISOString() ?? null,
+        journal: result.journal,
+        authors: result.authors,
+        evidenceScore: scoreByPaper.get(paperId) ?? null,
+        source: "pubmed",
+      };
+    })
+    .filter((p): p is PaperSummary => p !== null);
 }

@@ -37,7 +37,9 @@ export function SearchOverviewPanel({
   selectedPaperId,
   onSelectPaper,
 }: SearchOverviewPanelProps) {
-  const [wantAi, setWantAi] = useState(initialOverview?.generatedBy === "ai");
+  // Auto-fetch the AI synthesis (the server pre-warms it into the shared cache
+  // on search, so this is usually an instant cache hit rather than a cold call).
+  const [wantAi, setWantAi] = useState(true);
 
   const paperIdsKey = useMemo(
     () => papers.slice(0, 8).map((p) => p.id).join(","),
@@ -68,7 +70,7 @@ export function SearchOverviewPanel({
   if (papers.length === 0) return null;
 
   return (
-    <section className="overflow-hidden rounded-md border border-rule bg-gradient-to-br from-paper to-surface-elevated p-4 shadow-sm lg:p-5">
+    <section className="overflow-hidden rounded-md border border-rule bg-surface-elevated p-4 shadow-sm lg:p-5">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 className="font-serif text-lg font-medium text-ink">Overview</h2>
         <span
