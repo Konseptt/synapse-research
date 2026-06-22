@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -21,14 +22,9 @@ export function Nav({ className }: { className?: string }) {
         className,
       )}
     >
-      <div className="flex h-14 items-center justify-between px-5 lg:px-8">
-        <Link href="/" className="group flex items-baseline gap-2">
-          <span className="font-serif text-xl font-semibold tracking-tight text-ink">Synapse</span>
-          <span className="hidden text-[0.65rem] font-medium uppercase tracking-[0.18em] text-ink-faint sm:inline">
-            Research intelligence
-          </span>
-        </Link>
-        <nav className="flex items-center gap-1">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 lg:px-6">
+        <Logo />
+        <nav className="flex items-center gap-0.5" aria-label="Main">
           {links.map((link) => {
             const active = pathname.startsWith(link.href);
             return (
