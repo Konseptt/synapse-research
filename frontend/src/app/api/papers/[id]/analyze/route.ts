@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
+import { aiErrorStatus } from "@/lib/ai/availability";
 import { isAnalysisPending, isAnalysisReady } from "@/lib/analysis-utils";
 import { db } from "@/lib/db";
 import { paperAnalyses, papers } from "@/lib/db/schema";
@@ -53,8 +54,12 @@ export async function POST(
     return NextResponse.json({ paperId: id, status: "processing" });
   } catch (error) {
     console.error("Analyze error:", error);
+    const known = aiErrorStatus(error);
+    if (known) {
+      return NextResponse.json({ error: known.message }, { status: known.status });
+    }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Analysis failed" },
+      { error: error instanceof Error ? error.message : "Analysis failed. Try again." },
       { status: 500 },
     );
   }

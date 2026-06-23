@@ -6,7 +6,14 @@ describe("expandSearchQuery", () => {
   it("maps casual coffee question to searchable terms", () => {
     const result = expandSearchQuery("Is coffee bad for you?");
     expect(result.searchQuery.toLowerCase()).toMatch(/coffee/);
+    expect(result.searchQuery.toLowerCase()).not.toMatch(/\byou\b/);
     expect(result.searchQuery).not.toContain("?");
+  });
+
+  it("maps masturbation health question without orphan pronouns", () => {
+    const result = expandSearchQuery("is masturbating everyday bad for you");
+    expect(result.searchQuery.toLowerCase()).toMatch(/masturbation/);
+    expect(result.searchQuery.toLowerCase()).not.toMatch(/\byou\b/);
   });
 
   it("maps high blood pressure phrase", () => {
@@ -34,6 +41,25 @@ describe("expandSearchQuery", () => {
     const result = expandSearchQuery("how to overcome attachment issues");
     expect(result.searchQuery.toLowerCase()).toMatch(/attachment style|insecure attachment/);
     expect(result.searchHint).toBe("psychology attachment research");
+  });
+
+  it("does not throw on cure for", () => {
+    expect(() => expandSearchQuery("cure for")).not.toThrow();
+    const result = expandSearchQuery("cure for");
+    expect(result.originalQuery).toBe("cure for");
+    expect(result.searchQuery.length).toBeGreaterThan(0);
+  });
+
+  it("maps cure compulsive attachement typo to psychology attachment query", () => {
+    const result = expandSearchQuery("cure compulsive attachement");
+    expect(result.searchQuery.toLowerCase()).toMatch(/attachment style|insecure attachment/);
+    expect(result.searchHint).toBe("psychology attachment research");
+  });
+
+  it("keeps cure alone as a searchable keyword", () => {
+    const result = expandSearchQuery("cure");
+    expect(result.searchQuery).toBe("cure");
+    expect(result.matchedTopic).toBeUndefined();
   });
 });
 

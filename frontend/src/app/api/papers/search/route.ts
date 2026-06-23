@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { aiErrorStatus } from "@/lib/ai/availability";
 import {
   TTL,
   cacheKey,
@@ -10,7 +11,7 @@ import { config } from "@/lib/config";
 import { runBackground } from "@/lib/jobs/run-background";
 import { rankPapers } from "@/lib/search/evidence-rank";
 import { expandSearchQuery } from "@/lib/search/query-helper";
-import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
+import { getClientIp, rateLimitAsync } from "@/lib/security/rate-limit";
 import {
   buildFastOverview,
   buildSearchOverview,
@@ -59,7 +60,7 @@ function searchCacheKey(originalQuery: string, options: Record<string, string | 
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const { allowed } = rateLimit(`search:${ip}`, config.rateLimitPerMinute);
+  const { allowed } = await rateLimitAsync(`search:${ip}`, config.rateLimitPerMinute);
   if (!allowed) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
@@ -165,7 +166,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ...payload, cached: false });
   } catch (error) {
     console.error("Search error:", error);
-    return NextResponse.json({ error: "Search failed" }, { status: 500 });
+    const known = aiErrorStatus(error);
+    if (known) {
+      return NextResponse.json({ error: known.message }, { status: known.status });
+    }
+    const message =
+      error instanceof Error && /pubmed|ncbi|fetch|timeout/i.test(error.message)
+        ? "PubMed is temporarily unavailable. Try again in a moment."
+        : "Search failed. Try a broader query or try again shortly.";
+    const status =
+      error instanceof Error && /pubmed|ncbi|fetch|timeout/i.test(error.message) ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

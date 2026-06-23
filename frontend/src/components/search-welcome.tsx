@@ -1,22 +1,16 @@
 "use client";
 
 import { MedicalDisclaimer } from "@/components/medical-disclaimer";
-import { PopularTopics } from "@/components/popular-topics";
+import { RerExplainer } from "@/components/rer-explainer";
 import { SearchBox } from "@/components/search-box";
 
 interface SearchWelcomeProps {
   query: string;
   onQueryChange: (query: string) => void;
   onSearch: (query: string) => void;
-  onSelectTopic: (query: string) => void;
 }
 
-export function SearchWelcome({
-  query,
-  onQueryChange,
-  onSearch,
-  onSelectTopic,
-}: SearchWelcomeProps) {
+export function SearchWelcome({ query, onQueryChange, onSearch }: SearchWelcomeProps) {
   return (
     <div className="mx-auto max-w-2xl px-5 py-16 text-center lg:py-24">
       <p className="label-caps mb-3">Search</p>
@@ -24,16 +18,15 @@ export function SearchWelcome({
         What do you want to know?
       </h1>
       <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-ink-muted">
-        Ask naturally, like &ldquo;Is coffee bad?&rdquo; or &ldquo;Does exercise help depression?&rdquo;
+        Ask naturally. Results are ranked by our custom Research Evidence Rank (RER): study
+        design, sample size, and how well each paper matches your question.
       </p>
 
       <div className="mx-auto mt-8 max-w-lg text-left">
         <SearchBox value={query} onChange={onQueryChange} onSearch={onSearch} autoFocus />
       </div>
 
-      <div className="mx-auto mt-10 max-w-lg text-left">
-        <PopularTopics onSelect={onSelectTopic} hideAfterSelect />
-      </div>
+      <RerExplainer className="mx-auto mt-10 max-w-lg" compact />
 
       <MedicalDisclaimer className="mx-auto mt-10 max-w-md text-left text-xs" />
     </div>

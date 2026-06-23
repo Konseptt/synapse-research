@@ -4,17 +4,26 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 3001",
-    "build": "next build",
-    "vercel-build": "npm run db:push && next build",
+    "build": "npm run db:push && next build",
+    "vercel-build": "npm run build",
     "start": "next start",
     "lint": "eslint",
-    "db:setup": "npx tsx scripts/ensure-pgvector.ts && drizzle-kit push",
-    "db:push": "drizzle-kit push",
-    "db:generate": "drizzle-kit generate",
+    "db:setup": "npx tsx scripts/ensure-pgvector.ts && npx drizzle-kit push",
+    "db:push": "npx drizzle-kit push",
+    "db:generate": "npx drizzle-kit generate",
     "worker": "npx tsx scripts/worker.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:smoke": "npx tsx scripts/smoke-test.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "overrides": {
+    "esbuild": "^0.25.12",
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    }
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -35,13 +44,14 @@
     "fast-xml-parser": "^5.9.3",
     "framer-motion": "^12.40.0",
     "ioredis": "^5.11.1",
+    "jose": "^6.2.3",
     "lucide-react": "^1.21.0",
     "next": "16.2.9",
     "openai": "^6.44.0",
     "pdf-parse": "^2.4.5",
     "postgres": "^3.4.9",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "react-hook-form": "^7.80.0",
     "recharts": "^3.8.1",
     "tailwind-merge": "^3.6.0",
@@ -49,22 +59,22 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.3.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^20",
+    "@types/node": "^26.0.0",
     "@types/pdf-parse": "^1.1.5",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^9",
+    "eslint": "^9.39.4",
     "eslint-config-next": "16.2.9",
     "jsdom": "^29.1.1",
     "pdf-lib": "^1.17.1",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.3.1",
     "tsx": "^4.22.4",
-    "typescript": "^5",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   }
 }

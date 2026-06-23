@@ -56,12 +56,20 @@ export function buildPubMedQuery(query: string, options?: PubMedSearchOptions): 
   return parts.join(" AND ");
 }
 
-async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
+async function fetchWithRetry(url: string, retries = 3, timeoutMs = 10_000): Promise<Response> {
   let lastError: Error | null = null;
   for (let i = 0; i < retries; i++) {
-    const res = await fetch(url);
-    if (res.ok) return res;
-    lastError = new Error(`HTTP ${res.status}`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) return res;
+      lastError = new Error(`HTTP ${res.status}`);
+    } catch (error) {
+      clearTimeout(timer);
+      lastError = error instanceof Error ? error : new Error("Fetch failed");
+    }
     await new Promise((r) => setTimeout(r, 500 * (i + 1)));
   }
   throw lastError ?? new Error("Fetch failed");
@@ -114,6 +122,63 @@ function parsePubMedDate(pd: Record<string, unknown> | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function parseAbstractSections(abstractText: unknown): {
+  abstract: string | null;
+  conflictOfInterest: string | null;
+  funding: string | null;
+} {
+  if (abstractText == null) {
+    return { abstract: null, conflictOfInterest: null, funding: null };
+  }
+
+  const items = Array.isArray(abstractText) ? abstractText : [abstractText];
+  const blocks: string[] = [];
+  let conflictOfInterest: string | null = null;
+  let funding: string | null = null;
+
+  for (const item of items) {
+    if (typeof item === "object" && item !== null && !Array.isArray(item)) {
+      const obj = item as Record<string, unknown>;
+      const label = obj["@_Label"] ? String(obj["@_Label"]).trim() : "";
+      const body = xmlText(item).trim();
+      if (!body) continue;
+
+      if (label) {
+        blocks.push(`${label}: ${body}`);
+        const ll = label.toLowerCase();
+        if (!conflictOfInterest && /conflict|competing|disclosure|interest/.test(ll)) {
+          conflictOfInterest = body;
+        }
+        if (!funding && /fund|grant|support|sponsor|financial/.test(ll)) {
+          funding = body;
+        }
+      } else {
+        blocks.push(body);
+      }
+    } else {
+      const body = xmlText(item).trim();
+      if (body) blocks.push(body);
+    }
+  }
+
+  return { abstract: blocks.join("\n\n") || null, conflictOfInterest, funding };
+}
+
+function formatGrantList(grantList: unknown): string | null {
+  if (!grantList || typeof grantList !== "object") return null;
+  const grants = (grantList as Record<string, unknown>).Grant;
+  const list = grants ? (Array.isArray(grants) ? grants : [grants]) : [];
+  const parts = list
+    .map((grant: Record<string, unknown>) => {
+      const id = xmlText(grant.GrantID).trim();
+      const agency = xmlText(grant.Agency).trim();
+      if (id && agency) return `${agency} ${id}`;
+      return id || agency;
+    })
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join("; ") : null;
+}
+
 function parsePubMedXml(xml: string): PubMedPaper[] {
   const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
   const data = parser.parse(xml);
@@ -127,10 +192,20 @@ function parsePubMedXml(xml: string): PubMedPaper[] {
     const pmid = String((medline.PMID as Record<string, unknown>)?.["#text"] ?? "");
     const title = xmlText(articleData.ArticleTitle) || "Untitled";
     const abstractObj = articleData.Abstract as Record<string, unknown> | undefined;
-    const abstractText = abstractObj?.AbstractText;
-    const abstract = abstractText
-      ? xmlText(abstractText) || null
-      : null;
+    const parsedAbstract = parseAbstractSections(abstractObj?.AbstractText);
+    const coiStatement = xmlText(articleData.CoiStatement).trim() || null;
+    const grantSummary = formatGrantList(articleData.GrantList);
+
+    const extraSections: string[] = [];
+    if (coiStatement && !parsedAbstract.conflictOfInterest) {
+      extraSections.push(`CONFLICT OF INTEREST: ${coiStatement}`);
+    }
+    if (grantSummary && !parsedAbstract.funding) {
+      extraSections.push(`FUNDING: ${grantSummary}`);
+    }
+
+    const abstract =
+      [parsedAbstract.abstract, ...extraSections].filter(Boolean).join("\n\n") || null;
 
     const authorList = (articleData.AuthorList as Record<string, unknown>)?.Author;
     const authors = authorList

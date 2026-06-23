@@ -31,11 +31,23 @@ export function SearchBox({
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [open, setOpen] = useState(false);
 
-  const suggestions = showSuggestions && value.trim().length > 0
-    ? getSearchSuggestions(value, 6)
-    : [];
+  const suggestions = (() => {
+    if (!showSuggestions || value.trim().length === 0) return [];
+    try {
+      return getSearchSuggestions(value, 6);
+    } catch {
+      return [];
+    }
+  })();
 
-  const preview = value.trim().length > 2 ? expandSearchQuery(value) : null;
+  const preview = (() => {
+    if (value.trim().length <= 2) return null;
+    try {
+      return expandSearchQuery(value);
+    } catch {
+      return null;
+    }
+  })();
 
   useEffect(() => {
     const timer = setInterval(() => {

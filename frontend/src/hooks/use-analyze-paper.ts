@@ -16,14 +16,12 @@ export function useAnalyzePaper(paperId: string | null) {
       if (!paperId) throw new Error("No paper selected");
       return analyzePaperApi(paperId, force);
     },
-    onSuccess: (_data, force) => {
+    onSuccess: () => {
       if (!paperId) return;
       queryClient.invalidateQueries({ queryKey: ["paper", paperId] });
       queryClient.invalidateQueries({ queryKey: ["evidence", paperId] });
       queryClient.invalidateQueries({ queryKey: ["search"] });
-      if (force) {
-        queryClient.refetchQueries({ queryKey: ["paper", paperId] });
-      }
+      void queryClient.refetchQueries({ queryKey: ["paper", paperId] });
     },
   });
 }

@@ -2,7 +2,7 @@
 
 **Health questions, answered from real studies.**
 
-Synapse is a biomedical research intelligence app: search PubMed in plain English, get an **instant evidence-ranked overview** in under a second, then optionally deepen with NVIDIA AI or ask follow-up questions across papers.
+Synapse searches PubMed in plain English, returns an **evidence-ranked overview** in under a second, then optionally loads a fuller summary or lets you ask follow-up questions across papers.
 
 **Live repo:** [github.com/Konseptt/synapse-research](https://github.com/Konseptt/synapse-research)
 
@@ -13,11 +13,11 @@ Synapse is a biomedical research intelligence app: search PubMed in plain Englis
 | Layer | What it does | Typical latency |
 |-------|----------------|-----------------|
 | **Turbo cache** | In-memory + Redis cache for PubMed, full search payloads, AI overviews, chat | Repeat queries: **~20ms** |
-| **RER** (Research Evidence Rank) | Ranks papers by study design, sample, recency, rigor — no API | **&lt;1ms** per result set |
+| **RER** (Research Evidence Rank) | Ranks papers by study design, sample, recency, rigor (no API) | **&lt;1ms** per result set |
 | **ECS** (Extractive Consensus Synthesis) | Cited overview from abstract lead sentences + effect signals | **&lt;5ms** |
-| **NVIDIA AI** (optional) | Deeper synthesis & chat; warmed in background after search | **~30–45s** cold; cached after |
+| **Full summary** (optional) | Longer write-up and chat; warmed in background after search | **~30-45s** cold; cached after |
 
-Users never wait on AI to see useful results. AI is opt-in (“Deepen with AI”) or served from cache after background warming.
+Users see useful results right away. A fuller summary is optional ("Get full summary") or served from cache after background warming.
 
 ---
 
@@ -242,7 +242,7 @@ Copy `.env.example` → `frontend/.env.local`.
 | Framework | Next.js 16 App Router (Turbopack) |
 | UI | Tailwind, shadcn/ui, TanStack Query, Zustand |
 | Database | Drizzle ORM + PostgreSQL |
-| AI | NVIDIA API (OpenAI-compatible) — Llama 3.1 + embedqa |
+| AI | NVIDIA API (OpenAI-compatible), Llama 3.1 + embedqa |
 | Search | PubMed eUtils, custom query expansion |
 | Jobs | BullMQ + Redis (optional PDF worker) |
 | Graph | React Flow (`/graph`) |
@@ -300,7 +300,7 @@ npm test
 
 # E2E against running dev server
 npm run dev          # terminal 1
-npm run test:smoke   # terminal 2 — search, overview, chat + cache timing
+npm run test:smoke   # terminal 2: search, overview, chat + cache timing
 
 # Production build
 npm run build
@@ -321,7 +321,10 @@ npm run build
 > Root Directory is wrong. It must be **`frontend`**, not the repository root.  
 > Settings → Build and Deployment → Root Directory → `frontend` → Save → Redeploy.
 
-> **404 NOT_FOUND after deploy?** Same fix — Root Directory must be `frontend`.
+> **404 NOT_FOUND after deploy?** Same fix: Root Directory must be `frontend`.
+
+> **Build failed: `npm run build` exited with 127?**  
+> Dependencies were not installed in `frontend/`. Set **Root Directory** to `frontend`, or redeploy after pulling the latest commit (root `vercel.json` + `postinstall` install `frontend` deps when the repo root is used).
 
 For Redis-backed shared cache in production, add Upstash Redis and set `REDIS_URL`.
 

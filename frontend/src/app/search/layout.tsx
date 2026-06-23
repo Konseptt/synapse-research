@@ -6,7 +6,7 @@ export const metadata: Metadata = {
     "Search biomedical literature in plain English. Synapse translates your question, ranks evidence, and summarizes what published studies say.",
   alternates: { canonical: "/search" },
   openGraph: {
-    title: "Search PubMed Studies · Synapse",
+    title: "Search PubMed Studies | Synapse",
     url: "/search",
   },
 };

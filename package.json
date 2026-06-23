@@ -3,6 +3,7 @@
   "private": true,
   "description": "Monorepo root — deploy the frontend/ app on Vercel (Root Directory = frontend).",
   "scripts": {
+    "postinstall": "npm install --prefix frontend",
     "dev": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend",
     "test": "npm test --prefix frontend"

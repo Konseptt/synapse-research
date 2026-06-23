@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { aiErrorStatus } from "@/lib/ai/availability";
 import { buildSearchOverview } from "@/lib/services/search-overview";
 import { config } from "@/lib/config";
-import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
+import { getClientIp, rateLimitAsync } from "@/lib/security/rate-limit";
 
 export const maxDuration = 60;
 
@@ -14,7 +15,7 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const { allowed } = rateLimit(`overview:${ip}`, Math.min(config.rateLimitPerMinute, 20));
+  const { allowed } = await rateLimitAsync(`overview:${ip}`, Math.min(config.rateLimitPerMinute, 20));
   if (!allowed) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
@@ -29,6 +30,10 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
-    return NextResponse.json({ error: "Overview failed" }, { status: 500 });
+    const known = aiErrorStatus(error);
+    if (known) {
+      return NextResponse.json({ error: known.message }, { status: known.status });
+    }
+    return NextResponse.json({ error: "Overview failed. Try again shortly." }, { status: 500 });
   }
 }

@@ -243,3 +243,6 @@ export const MULTI_PAPER_QUESTIONS = [
 
 export const MEDICAL_DISCLAIMER =
   "Synapse summarizes published research for learning. It is not medical advice. Talk to a doctor about your own health decisions.";
+
+export const RESEARCH_SUMMARY_DISCLAIMER =
+  "Summaries are from published studies. Not medical advice.";

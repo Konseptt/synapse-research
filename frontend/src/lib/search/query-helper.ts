@@ -54,6 +54,7 @@ const PHRASE_MAP: [RegExp | string, string][] = [
   ["vaping", "electronic nicotine delivery systems"],
   ["marijuana", "cannabis medical"],
   ["cbd", "cannabidiol"],
+  ["compulsive attachment", "insecure attachment attachment style psychotherapy"],
   ["attachment issues", "insecure attachment attachment style psychotherapy"],
   ["attachment problems", "insecure attachment attachment style psychotherapy"],
   ["insecure attachment", "insecure attachment style adult attachment psychotherapy"],
@@ -65,12 +66,16 @@ const PHRASE_MAP: [RegExp | string, string][] = [
   ["trauma", "psychological trauma mental health treatment"],
   ["ptsd", "post-traumatic stress disorder treatment"],
   ["grief", "bereavement grief counseling"],
+  ["masturbating", "masturbation"],
+  ["masturbate", "masturbation"],
+  ["every day", "daily"],
+  ["everyday", "daily"],
 ];
 
 /** Everyday questions → PubMed queries with field tags (when phrase map did not apply). */
 const INTENT_REWRITES: { test: RegExp; query: string; label?: string }[] = [
   {
-    test: /\b(attachment\s+(issues?|problems?|styles?|disorder|therapy|insecurity)|insecure\s+attachment|attachment\s+(avoidant|anxious)|overcome\s+attachment|attachment\s+(in\s+)?relationships?)\b/i,
+    test: /\b(compulsive\s+attachment|attachment\s+disorder|(cure|treat|treats|treating|fix|fixing|heal|healing|overcome|overcoming)\b.*\battachment\b|attachment\s+(issues?|problems?|styles?|disorder|therapy|insecurity)|insecure\s+attachment|attachment\s+(avoidant|anxious)|overcome\s+attachment|attachment\s+(in\s+)?relationships?)\b/i,
     query:
       '(attachment style[Title/Abstract] OR insecure attachment[Title/Abstract] OR "object attachment"[MeSH Terms]) AND humans[MeSH Terms] NOT (solder[Title/Abstract] OR implant[Title/Abstract] OR nanoparticle[Title/Abstract] OR polymer[Title/Abstract])',
     label: "psychology attachment research",
@@ -82,6 +87,12 @@ const INTENT_REWRITES: { test: RegExp; query: string; label?: string }[] = [
   {
     test: /\b(trust issues|commitment issues|fear of intimacy)\b/i,
     query: "attachment style intimacy interpersonal relationships psychotherapy",
+  },
+  {
+    test: /\bmasturbat/i,
+    query:
+      "(masturbation[Title/Abstract] OR masturbation[MeSH Terms]) AND (frequency OR daily OR health)",
+    label: "masturbation frequency and health",
   },
 ];
 
@@ -100,11 +111,11 @@ const STOP_WORDS = new Set([
   "people", "person", "thing", "things", "something", "anything",
   "get", "gets", "getting", "got", "make", "makes", "making", "made",
   "know", "think", "tell", "say", "said", "look", "find", "use", "using",
-  "long", "short", "new", "old", "everyday", "normal",
+  "long", "short", "new", "old", "normal",
 ]);
 
-function normalize(text: string): string {
-  return text
+function normalize(text: string | null | undefined): string {
+  return String(text ?? "")
     .toLowerCase()
     .replace(/[?!.,;:'"]/g, " ")
     .replace(/\s+/g, " ")
@@ -139,25 +150,69 @@ function findTopicMatch(input: string): PopularTopic | undefined {
   return undefined;
 }
 
+function phrasePattern(from: string): RegExp {
+  const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (from.length <= 4) {
+    return new RegExp(`\\b${escaped}\\b`, "gi");
+  }
+  return new RegExp(escaped, "gi");
+}
+
 function applyPhraseMap(text: string): string {
   let result = text;
   for (const [from, to] of PHRASE_MAP) {
-    const pattern = typeof from === "string" ? new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi") : from;
+    const pattern = typeof from === "string" ? phrasePattern(from) : from;
     result = result.replace(pattern, to);
   }
   return result;
 }
 
+function fixTypos(text: string): string {
+  return text.replace(/attachement/gi, "attachment");
+}
+
 function stripQuestionFraming(text: string): string {
   return text
+    .replace(/^(cure|cures|curing|treat|treats|treating|fix|fixing|heal|healing|overcome|overcoming)\s+(for\s+)?/i, "")
+    .replace(/\bbad\s+for\s+(you|me)\b/gi, "adverse health effects")
+    .replace(/\bgood\s+for\s+(you|me)\b/gi, "health benefits")
     .replace(/^how\s+to\s+/i, "")
     .replace(/^how\s+(can|do|does)\s+(i|you|we)\s+/i, "")
     .replace(/^(does|do|is|are|was|were|can|could|should|would|will|shall|may|might|must)\s+/i, "")
     .replace(/^(what|which|who|how|why|when|where)\s+(is|are|does|do|can|should|helps?|causes?|about)\s+/i, "")
-    .replace(/\b(help|helps|help with|good for|bad for|worth it|actually|really|overcome|overcoming)\b/gi, " ")
+    .replace(/\b(help|helps|help with|worth it|actually|really|overcome|overcoming)\b/gi, " ")
     .replace(/\?+$/, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function sanitizeSearchQuery(text: string): string {
+  const words = text
+    .split(" ")
+    .filter((w): w is string => typeof w === "string" && w.length > 0);
+  if (words.length === 0) return "";
+  const first = words[0]?.toLowerCase();
+  if (words.length === 1 && first && STOP_WORDS.has(first)) return "";
+
+  let start = 0;
+  let end = words.length;
+  while (start < end) {
+    const word = words[start]?.toLowerCase();
+    if (!word || !STOP_WORDS.has(word)) break;
+    start++;
+  }
+  while (end > start) {
+    const word = words[end - 1]?.toLowerCase();
+    if (!word || !STOP_WORDS.has(word)) break;
+    end--;
+  }
+  return words.slice(start, end).join(" ");
+}
+
+function meaningfulTokenCount(text: string): number {
+  return normalize(text)
+    .split(" ")
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w)).length;
 }
 
 function findIntentRewrite(input: string): { query: string; label?: string } | undefined {
@@ -189,83 +244,93 @@ export interface ExpandedQuery {
 }
 
 /** Turn everyday language into something PubMed can find. */
-export function expandSearchQuery(raw: string): ExpandedQuery {
-  const originalQuery = raw.trim();
+export function expandSearchQuery(raw: string | null | undefined): ExpandedQuery {
+  const originalQuery = String(raw ?? "").trim();
   if (!originalQuery) {
     return { originalQuery: "", searchQuery: "" };
   }
 
-  const matchedTopic = findTopicMatch(originalQuery);
-  if (matchedTopic) {
+  try {
+    const correctedQuery = fixTypos(originalQuery);
+
+    const matchedTopic = findTopicMatch(correctedQuery);
+    if (matchedTopic) {
+      return {
+        originalQuery,
+        searchQuery: matchedTopic.query,
+        translatedFrom: originalQuery,
+        matchedTopic,
+      };
+    }
+
+    const intent = findIntentRewrite(correctedQuery);
+    if (intent) {
+      return {
+        originalQuery,
+        searchQuery: intent.query,
+        translatedFrom: originalQuery,
+        searchHint: intent.label,
+      };
+    }
+
+    let working = normalize(correctedQuery);
+    const afterPhrase = applyPhraseMap(working);
+    if (afterPhrase !== working) {
+      working = sanitizeSearchQuery(stripQuestionFraming(afterPhrase));
+      return {
+        originalQuery,
+        searchQuery: working || afterPhrase,
+        translatedFrom: originalQuery,
+        searchHint: "mapped to research terms",
+      };
+    }
+
+    working = sanitizeSearchQuery(stripQuestionFraming(working));
+
+    let searchQuery = working.split(" ").filter(Boolean).join(" ");
+    if (meaningfulTokenCount(searchQuery) < 2) {
+      searchQuery = extractKeywords(correctedQuery);
+    }
+    if (!searchQuery) {
+      searchQuery = originalQuery;
+    }
+
+    const changed = normalize(searchQuery) !== normalize(originalQuery);
+
     return {
       originalQuery,
-      searchQuery: matchedTopic.query,
-      translatedFrom: originalQuery,
-      matchedTopic,
+      searchQuery,
+      translatedFrom: changed ? originalQuery : undefined,
     };
+  } catch {
+    return { originalQuery, searchQuery: originalQuery };
   }
-
-  const intent = findIntentRewrite(originalQuery);
-  if (intent) {
-    return {
-      originalQuery,
-      searchQuery: intent.query,
-      translatedFrom: originalQuery,
-      searchHint: intent.label,
-    };
-  }
-
-  let working = normalize(originalQuery);
-  const afterPhrase = applyPhraseMap(working);
-  if (afterPhrase !== working) {
-    working = stripQuestionFraming(afterPhrase);
-    return {
-      originalQuery,
-      searchQuery: working || afterPhrase,
-      translatedFrom: originalQuery,
-      searchHint: "mapped to research terms",
-    };
-  }
-
-  working = stripQuestionFraming(working);
-
-  let searchQuery = working.split(" ").filter(Boolean).join(" ");
-  if (searchQuery.split(" ").length < 2) {
-    searchQuery = extractKeywords(originalQuery);
-  }
-  if (!searchQuery) {
-    searchQuery = originalQuery;
-  }
-
-  const changed = normalize(searchQuery) !== normalize(originalQuery);
-
-  return {
-    originalQuery,
-    searchQuery,
-    translatedFrom: changed ? originalQuery : undefined,
-  };
 }
 
-export function getSearchSuggestions(input: string, limit = 8): PopularTopic[] {
-  const n = normalize(input);
-  if (!n) return POPULAR_TOPICS.slice(0, limit);
+export function getSearchSuggestions(input: string | null | undefined, limit = 8): PopularTopic[] {
+  try {
+    const n = normalize(input);
+    if (!n) return POPULAR_TOPICS.slice(0, limit);
 
-  const scored = POPULAR_TOPICS.map((topic) => {
-    let score = 0;
-    const label = normalize(topic.label);
-    const query = normalize(topic.query);
-    if (label.startsWith(n) || label.includes(n)) score += 10;
-    if (query.includes(n)) score += 6;
-    for (const word of n.split(" ")) {
-      if (word.length < 3) continue;
-      if (label.includes(word)) score += 3;
-      if (query.includes(word)) score += 2;
-      if (topic.aliases?.some((a) => normalize(a).includes(word))) score += 4;
-    }
-    return { topic, score };
-  })
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score);
+    const scored = POPULAR_TOPICS.map((topic) => {
+      let score = 0;
+      const label = normalize(topic.label);
+      const query = normalize(topic.query);
+      if (label.startsWith(n) || label.includes(n)) score += 10;
+      if (query.includes(n)) score += 6;
+      for (const word of n.split(" ")) {
+        if (word.length < 3) continue;
+        if (label.includes(word)) score += 3;
+        if (query.includes(word)) score += 2;
+        if (topic.aliases?.some((a) => normalize(a).includes(word))) score += 4;
+      }
+      return { topic, score };
+    })
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score);
 
-  return scored.slice(0, limit).map(({ topic }) => topic);
+    return scored.slice(0, limit).map(({ topic }) => topic);
+  } catch {
+    return POPULAR_TOPICS.slice(0, limit);
+  }
 }

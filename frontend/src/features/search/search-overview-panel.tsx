@@ -16,12 +16,6 @@ const verdictStyles: Record<string, string> = {
   insufficient: "bg-surface text-ink-muted",
 };
 
-const sourceBadge: Record<string, string> = {
-  ai: "AI synthesis",
-  heuristic: "Instant read",
-  instant: "Quick match",
-};
-
 interface SearchOverviewPanelProps {
   query: string;
   papers: PaperSummary[];
@@ -81,10 +75,10 @@ export function SearchOverviewPanel({
               : "bg-surface text-ink-muted",
           )}
         >
-          {display.generatedBy === "ai" ? display.verdictLabel : sourceBadge[display.generatedBy ?? "heuristic"]}
+          {display.generatedBy === "ai" ? display.verdictLabel : "Preliminary"}
         </span>
         {aiPending && (
-          <span className="text-xs text-ink-faint">Deepening with AI…</span>
+          <span className="text-xs text-ink-faint">Still summarizing…</span>
         )}
       </div>
 
@@ -103,10 +97,10 @@ export function SearchOverviewPanel({
             onClick={() => setWantAi(true)}
             className="rounded-full border border-accent/30 bg-accent-soft px-3 py-1 text-xs font-medium text-accent hover:bg-accent/10"
           >
-            Deepen with AI
+            Get full summary
           </button>
         )}
-        {(isError || (wantAi && !isFetching && display.generatedBy !== "ai")) && (
+        {(isError || (wantAi && !isFetching && !aiPending && display.generatedBy !== "ai")) && (
           <button
             type="button"
             onClick={() => {
@@ -115,13 +109,15 @@ export function SearchOverviewPanel({
             }}
             className="text-xs font-medium text-accent hover:text-accent-hover"
           >
-            Retry AI
+            Try again
           </button>
         )}
       </div>
 
       {display.sources.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-1.5 border-t border-rule/60 pt-3">
+        <div className="mt-4 border-t border-rule/60 pt-3">
+          <p className="mb-2 text-xs font-medium text-ink-muted">Dive deeper: open a study below</p>
+          <div className="flex flex-wrap gap-1.5">
           {display.sources.map((source) => (
             <button
               key={source.paperId}
@@ -139,6 +135,7 @@ export function SearchOverviewPanel({
               {decodeHtmlEntities(source.title)}
             </button>
           ))}
+          </div>
         </div>
       )}
     </section>

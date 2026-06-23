@@ -224,7 +224,7 @@ export function rankPapers(query: string, papers: PaperSummary[]): RankedPaper[]
       sampleSize,
       year,
       direction: effectDirection(text),
-      reason: reasonParts.join(" · "),
+      reason: reasonParts.join(", "),
     };
   });
 

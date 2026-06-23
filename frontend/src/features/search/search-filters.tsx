@@ -14,7 +14,7 @@ export function SearchFiltersPanel({ filters, onChange }: SearchFiltersProps) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="border-b border-rule pb-4">
+    <div>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

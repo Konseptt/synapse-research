@@ -1,3 +1,4 @@
+import { RESEARCH_SUMMARY_DISCLAIMER } from "@/lib/content/public-topics";
 import type { PaperSummary, SearchOverviewResponse } from "@/types/paper";
 
 export function buildInstantOverview(
@@ -13,7 +14,7 @@ export function buildInstantOverview(
   } else if (count === 1) {
     summary = `Found 1 study related to your question. Select it in the list to read more.`;
   } else {
-    summary = `Found ${count} studies related to your question. Browse the list on the left or read the AI summary when ready.`;
+    summary = `Found ${count} studies related to your question. Browse the list on the left or open the full summary when ready.`;
   }
 
   return {
@@ -32,7 +33,7 @@ export function buildInstantOverview(
       excerpt: (paper.abstract ?? paper.title).slice(0, 140),
     })),
     uncertainty: null,
-    disclaimer: "This is research synthesis, not medical advice.",
+    disclaimer: RESEARCH_SUMMARY_DISCLAIMER,
     generatedBy: "instant",
   };
 }

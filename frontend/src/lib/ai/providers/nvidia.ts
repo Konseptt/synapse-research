@@ -1,12 +1,13 @@
 import OpenAI from "openai";
 
+import { assertAiConfigured } from "@/lib/ai/availability";
 import { TTL, cacheKey, turboGet, turboSet } from "@/lib/cache/turbo-cache";
 import { config } from "@/lib/config";
 
 let client: OpenAI | null = null;
 
 export function getNvidiaClient(): OpenAI {
-  if (!client) {
+  if (!client || (config.nvidiaApiKey && client.apiKey !== config.nvidiaApiKey)) {
     client = new OpenAI({
       baseURL: config.nvidiaBaseUrl,
       apiKey: config.nvidiaApiKey || "not-set",
@@ -19,6 +20,7 @@ export async function chatCompletion(
   messages: OpenAI.Chat.ChatCompletionMessageParam[],
   options?: { temperature?: number; maxTokens?: number; jsonMode?: boolean },
 ): Promise<string> {
+  assertAiConfigured();
   const response = await getNvidiaClient().chat.completions.create({
     model: config.nvidiaModel,
     messages,
@@ -57,6 +59,8 @@ export async function embedText(
   const retries = options?.retries ?? 2;
   const model = resolveEmbeddingModel(inputType);
   let lastError: Error | null = null;
+
+  assertAiConfigured();
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {

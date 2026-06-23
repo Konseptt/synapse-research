@@ -38,8 +38,15 @@ export function PaperAnalysisSection({
     }
   }, [analysis, analyzing]);
 
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (pendingSince == null) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [pendingSince]);
+
   const pollExhausted =
-    pendingSince != null && Date.now() - pendingSince > POLL_TIMEOUT_MS;
+    pendingSince != null && now - pendingSince > POLL_TIMEOUT_MS;
 
   if (isAnalysisReady(analysis)) {
     return (
@@ -112,7 +119,7 @@ export function PaperAnalysisSection({
               href={`/paper/${paperId}`}
               className="inline-block text-xs font-medium text-accent hover:text-accent-hover"
             >
-              Full breakdown →
+              View full analysis
             </Link>
           )}
           <Button
@@ -136,7 +143,7 @@ export function PaperAnalysisSection({
         <p className="text-sm text-ink-muted">
           {pollExhausted
             ? "This is taking longer than expected. You can wait or retry."
-            : "Analyzing… usually 1–2 minutes for abstracts, longer for PDFs."}
+            : "Analyzing… usually 1-2 minutes for abstracts, longer for PDFs."}
         </p>
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-5/6" />
@@ -160,7 +167,7 @@ export function PaperAnalysisSection({
   if (analysis?.status === "failed") {
     return (
       <div className="space-y-2 border border-danger/30 bg-danger-soft p-4">
-        <p className="text-sm text-danger">Analysis failed. Check your AI key or try again.</p>
+        <p className="text-sm text-danger">Analysis failed. Check your API key or try again.</p>
         <Button size="sm" variant="outline" onClick={() => onAnalyze(true)} disabled={analyzing}>
           Retry
         </Button>
@@ -171,7 +178,7 @@ export function PaperAnalysisSection({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-ink-muted">
-        Run AI analysis to extract findings, score evidence, and enable Q&amp;A on this paper.
+        Get a plain-English summary and the key findings from this study.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => onAnalyze(false)} disabled={analyzing}>
@@ -179,7 +186,7 @@ export function PaperAnalysisSection({
         </Button>
         <Link href={`/paper/${paperId}`}>
           <Button size="sm" variant="outline">
-            Full page
+            Open full page
           </Button>
         </Link>
       </div>

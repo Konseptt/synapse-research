@@ -14,6 +14,7 @@ import {
   type RankedPaper,
   type RankedVerdict,
 } from "@/lib/search/evidence-rank";
+import { RESEARCH_SUMMARY_DISCLAIMER } from "@/lib/content/public-topics";
 import type { PaperSummary, SearchOverviewResponse } from "@/types/paper";
 
 function clean(text: string): string {
@@ -88,7 +89,7 @@ export function buildHeuristicOverview(
       verdictLabel: "No studies found",
       sources: [],
       uncertainty: null,
-      disclaimer: "This is research synthesis, not medical advice.",
+      disclaimer: RESEARCH_SUMMARY_DISCLAIMER,
       generatedBy: "heuristic",
     };
   }
@@ -103,11 +104,11 @@ export function buildHeuristicOverview(
   let summary: string;
   if (count === 1) {
     const r = ranked[0];
-    const from = r.year ? ` from ${r.year}` : "";
-    summary = `${cited[0]} This is a single ${r.designLabel.toLowerCase()}${from}; one study is rarely the last word.`;
+    summary = `Just one ${r.designLabel.toLowerCase()} so far, an early signal, not the last word. ${cited[0]}`;
   } else {
     const composition = describeComposition(ranked);
-    summary = `${cited.join(" ")} Across ${count} studies, ${composition}, ${consensusText(verdict)}. Confidence: ${confidence}.`;
+    // Lead with the plain takeaway; the cited study sentences follow as support.
+    summary = `Across ${count} studies, ${composition}, ${consensusText(verdict)}, ${confidence} confidence. ${cited.join(" ")}`;
   }
 
   return {
@@ -117,7 +118,7 @@ export function buildHeuristicOverview(
     verdictLabel: verdictLabel(verdict),
     sources: toSources(ranked),
     uncertainty: null,
-    disclaimer: "This is research synthesis, not medical advice.",
+    disclaimer: RESEARCH_SUMMARY_DISCLAIMER,
     generatedBy: "heuristic",
   };
 }

@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { RER_SCORE_TOOLTIP } from "@/lib/content/rer";
 import { cn } from "@/lib/utils";
 
 const QUALITY_LABELS: Record<string, string> = {
@@ -26,13 +27,15 @@ export function ScoreBadge({
   return (
     <div
       className={cn("flex shrink-0 flex-col items-end gap-0.5", className)}
-      title={`Study quality score: ${Math.round(score)} out of 100. Higher usually means larger, newer, or more rigorous designs.`}
+      title={RER_SCORE_TOOLTIP(score)}
     >
       <Badge variant={variant} className="tabular-nums">
         {Math.round(score)}
       </Badge>
       {showLabel && (
-        <span className="text-[0.625rem] text-ink-faint">{QUALITY_LABELS[qualityKey]}</span>
+        <span className="text-[0.625rem] text-ink-faint">
+          {QUALITY_LABELS[qualityKey]} · RER
+        </span>
       )}
     </div>
   );

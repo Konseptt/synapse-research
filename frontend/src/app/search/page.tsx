@@ -1,8 +1,8 @@
 "use client";
 
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { MedicalDisclaimer } from "@/components/medical-disclaimer";
@@ -28,7 +28,22 @@ import { cn } from "@/lib/utils";
 type CenterTab = "study" | "compare" | "ask";
 
 export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Skeleton className="h-8 w-48" />
+        </div>
+      }
+    >
+      <SearchPageContent />
+    </Suspense>
+  );
+}
+
+function SearchPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     query,
     submittedQuery,
@@ -51,11 +66,11 @@ export default function SearchPage() {
   const [abstractOpen, setAbstractOpen] = useState(false);
 
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("q");
+    const q = searchParams.get("q");
     if (q && q.trim().length > 2) {
       searchTopic(q.trim());
     }
-  }, [searchTopic]);
+  }, [searchParams, searchTopic]);
 
   const hasActiveSearch = submittedQuery.length > 2;
 
@@ -151,6 +166,16 @@ export default function SearchPage() {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      const el = document.activeElement;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "SELECT" ||
+          (el as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
       if (e.key === "j" && papers.length > 0) {
         const next = Math.min(selectedIndex + 1, papers.length - 1);
         setSelectedPaperId(papers[next].id);
@@ -232,7 +257,6 @@ export default function SearchPage() {
           query={query}
           onQueryChange={setQuery}
           onSearch={handleSearch}
-          onSelectTopic={handleSearch}
         />
       </div>
     );
@@ -241,8 +265,8 @@ export default function SearchPage() {
   const showCompareTab = comparePaperIds.length >= 2;
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-surface">
-      <div className="sticky top-14 z-30 border-b border-rule bg-surface-elevated/95 backdrop-blur-sm">
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-surface">
+      <div className="shrink-0 border-b border-rule bg-surface-elevated/95 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-4 py-3 lg:px-6">
           <SearchBox value={query} onChange={setQuery} onSearch={handleSearch} />
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-faint">
@@ -284,16 +308,18 @@ export default function SearchPage() {
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-6xl min-h-0 flex-1">
-        <aside className="hidden w-72 shrink-0 flex-col border-r border-rule bg-paper lg:flex xl:w-80">
-          <div className="border-b border-rule p-3">
+      <div className="mx-auto flex w-full max-w-6xl min-h-0 flex-1 overflow-hidden">
+        <aside className="hidden w-80 shrink-0 flex flex-col overflow-hidden border-r border-rule bg-paper lg:flex">
+          <div className="shrink-0 space-y-2 border-b border-rule px-3 py-3">
             <SearchFiltersPanel filters={filters} onChange={setFilters} />
-            <p className="mt-2 text-[0.65rem] text-ink-faint">Tap + to compare up to 3 studies</p>
+            <p className="text-[0.65rem] leading-relaxed text-ink-faint">
+              Tap <span className="font-mono text-ink-muted">+</span> to compare up to 3 studies
+            </p>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">{resultsList}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{resultsList}</div>
         </aside>
 
-        <main className="min-w-0 flex-1 overflow-y-auto">
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
           <div className="space-y-4 p-4 lg:p-6">
             <div className="lg:hidden">
               <button

@@ -17,7 +17,14 @@ export async function GET(
     .limit(1);
 
   if (!score) {
-    return NextResponse.json({ error: "Evidence score not found" }, { status: 404 });
+    return NextResponse.json({
+      score: null,
+      studyTypeScore: null,
+      sampleSizeScore: null,
+      recencyScore: null,
+      biasScore: null,
+      reasoning: null,
+    });
   }
 
   return NextResponse.json({

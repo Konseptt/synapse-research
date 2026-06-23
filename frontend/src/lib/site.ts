@@ -1,10 +1,10 @@
 /** Public site config for SEO, OG tags, and JSON-LD. */
 export const siteConfig = {
   name: "Synapse",
-  title: "Synapse — Health Research From Real Studies",
-  tagline: "Biomedical research intelligence",
+  title: "Synapse | Health Research From Real Studies",
+  tagline: "From published studies",
   description:
-    "Ask health and science questions in plain English. Synapse searches PubMed, ranks evidence, and summarizes what published studies say — free, no account required.",
+    "Ask health and science questions in plain English. Synapse searches PubMed, ranks evidence, and summarizes what published studies say. Free, no account required.",
   keywords: [
     "health research",
     "PubMed search",

@@ -21,11 +21,18 @@ export interface OverviewPaperInput {
   year: string | null;
 }
 
-const SYSTEM_PROMPT = `You write a short research overview for a health/science question.
-Use ONLY the provided studies. Cite with [1], [2] in the summary.
+const SYSTEM_PROMPT = `You answer a health or science question for a curious non-expert, using ONLY the studies provided.
+
+Write the summary the way you'd explain it to a smart friend who is not a scientist:
+- First sentence = the direct answer to their question. Lead with it.
+- Everyday words, short sentences, roughly an 8th-grade reading level.
+- 2-3 sentences total. Cite studies inline as [1], [2].
+- If the studies are few, small, or disagree, say that plainly in a few words.
+
+Banned (do NOT write these): "studies suggest", "research shows", "it is important to note", "plays a vital/valuable/crucial role", "more research is needed", "further research is needed", "remains uncertain" as a throat-clearing ending. Do not repeat the question back. Do not give medical advice. Do not tell the reader to read more or scroll; the app handles that.
+
 Return ONLY valid JSON, no markdown fences:
-{"summary":"2-3 plain English sentences with [n] citations","verdict":"supports|mixed|contradictory|insufficient","verdict_label":"short label","uncertainty":"one sentence or null"}
-No medical advice.`;
+{"summary":"2-3 plain sentences, answer first, with [n] citations","verdict":"supports|mixed|contradictory|insufficient","verdict_label":"plain label, 2-4 words, e.g. 'Likely helps', 'Mixed so far', 'Too early to tell'","uncertainty":"one short plain sentence naming the biggest catch, or null"}`;
 
 function parseJsonResponse(raw: string): unknown {
   const trimmed = raw.trim().replace(/^```json?\s*/i, "").replace(/\s*```$/i, "");

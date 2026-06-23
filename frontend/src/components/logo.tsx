@@ -17,14 +17,14 @@ export function Logo({ className, showWordmark = true, size = 36 }: LogoProps) {
     <Link
       href="/"
       className={cn("group flex items-center gap-2.5 rounded-sm outline-offset-4", className)}
-      aria-label={`${siteConfig.name} — home`}
+      aria-label={`${siteConfig.name}, home`}
     >
       <Image
         src="/logo.svg"
         alt=""
         width={size}
         height={size}
-        className="shrink-0 rounded-[10px] shadow-sm ring-1 ring-rule/40 transition-transform group-hover:scale-[1.02]"
+        className="shrink-0 rounded-[10px] shadow-sm ring-1 ring-rule/40"
         priority
       />
       {showWordmark && (

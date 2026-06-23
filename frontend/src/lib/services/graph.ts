@@ -1,6 +1,5 @@
-import { eq } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 
-import { config } from "@/lib/config";
 import { db } from "@/lib/db";
 import { researchGraphs } from "@/lib/db/schema";
 import { expandSearchQuery } from "@/lib/search/query-helper";
@@ -64,7 +63,15 @@ export async function buildTopicGraph(topic: string): Promise<GraphResponse> {
   }
 
   const paperIds = new Set(topicPapers.map((p) => p.id));
-  const graphEdges = await db.select().from(researchGraphs).limit(40);
+  const paperIdList = [...paperIds];
+  const graphEdges =
+    paperIdList.length > 0
+      ? await db
+          .select()
+          .from(researchGraphs)
+          .where(inArray(researchGraphs.sourcePaper, paperIdList))
+          .limit(40)
+      : [];
   for (const ge of graphEdges) {
     if (paperIds.has(ge.sourcePaper) && paperIds.has(ge.targetPaper)) {
       edges.push({

@@ -1,15 +1,17 @@
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
 import { ScoreBadge } from "@/components/score-badge";
+import { RER_COMPACT_TOOLTIP } from "@/lib/content/rer";
 import { decodeHtmlEntities } from "@/lib/analysis-utils";
 import type { PaperSummary } from "@/types/paper";
 import { cn } from "@/lib/utils";
 
-/** Score → text tone, so the ranking reads at a glance without shouting. */
-function scoreTone(score: number): string {
-  if (score >= 70) return "text-accent";
-  if (score >= 40) return "text-ink";
-  return "text-ink-faint";
+function scoreVariant(score: number): "default" | "secondary" | "signal" | "outline" {
+  if (score >= 70) return "default";
+  if (score >= 40) return "secondary";
+  if (score >= 20) return "signal";
+  return "outline";
 }
 
 interface PaperCardProps {
@@ -32,21 +34,85 @@ export function PaperCard({
   onToggleCompare,
 }: PaperCardProps) {
   const year = paper.publicationDate?.slice(0, 4);
+  const metaLine = [paper.journal, year].filter(Boolean).join(" · ");
+
+  if (compact) {
+    return (
+      <div
+        onMouseEnter={onPrefetch}
+        onFocus={onPrefetch}
+        className={cn(
+          "w-full px-3 py-2.5 text-left transition-colors",
+          selected ? "bg-accent-soft/60" : "hover:bg-surface-elevated/80",
+        )}
+      >
+        <div className="flex gap-2">
+          {onToggleCompare && (
+            <button
+              type="button"
+              aria-label={compareSelected ? "Remove from compare" : "Add to compare"}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCompare();
+              }}
+              className={cn(
+                "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border text-[0.6875rem] leading-none",
+                compareSelected
+                  ? "border-accent bg-accent text-paper"
+                  : "border-rule text-ink-faint hover:border-accent-muted",
+              )}
+            >
+              {compareSelected ? "✓" : "+"}
+            </button>
+          )}
+          <button type="button" onClick={onClick} className="min-w-0 flex-1 text-left">
+            <h3 className="line-clamp-2 text-xs font-medium leading-snug text-ink">
+              {decodeHtmlEntities(paper.title)}
+            </h3>
+            {(paper.evidenceScore != null || paper.evidenceTier || metaLine) && (
+              <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
+                {paper.evidenceScore != null && (
+                  <Badge
+                    variant={scoreVariant(paper.evidenceScore)}
+                    className="h-5 shrink-0 px-1.5 py-0 text-[0.625rem] tabular-nums"
+                    title={RER_COMPACT_TOOLTIP(paper.evidenceScore)}
+                  >
+                    {Math.round(paper.evidenceScore)}
+                  </Badge>
+                )}
+                {paper.evidenceTier && (
+                  <span
+                    className="max-w-[6.5rem] shrink-0 truncate rounded-sm border border-rule bg-surface px-1.5 py-px text-[0.5625rem] font-medium uppercase tracking-wide text-ink-muted"
+                    title={paper.evidenceTier}
+                  >
+                    {paper.evidenceTier}
+                  </span>
+                )}
+                {metaLine && (
+                  <span
+                    className="min-w-0 truncate text-[0.625rem] text-ink-faint"
+                    title={metaLine}
+                  >
+                    {metaLine}
+                  </span>
+                )}
+              </div>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       onMouseEnter={onPrefetch}
       onFocus={onPrefetch}
       className={cn(
-        "w-full text-left transition-colors",
-        compact ? "px-3 py-2.5" : "border-l-2 py-3 pl-3 pr-2",
-        compact
-          ? selected
-            ? "bg-accent-soft/60"
-            : "hover:bg-surface-elevated/80"
-          : selected
-            ? "border-l-accent bg-accent-soft/50"
-            : "border-l-transparent hover:border-l-rule-strong hover:bg-surface-elevated/80",
+        "w-full border-l-2 py-3 pl-3 pr-2 text-left transition-colors",
+        selected
+          ? "border-l-accent bg-accent-soft/50"
+          : "border-l-transparent hover:border-l-rule-strong hover:bg-surface-elevated/80",
       )}
     >
       <div className="flex gap-2">
@@ -70,41 +136,24 @@ export function PaperCard({
         )}
         <button type="button" onClick={onClick} className="min-w-0 flex-1 text-left">
           <div className="flex items-start justify-between gap-2">
-            <h3
-              className={cn(
-                "line-clamp-2 font-medium leading-snug text-ink",
-                compact ? "text-xs" : "font-serif text-[0.9375rem]",
-              )}
-            >
+            <h3 className="line-clamp-2 font-serif text-[0.9375rem] font-medium leading-snug text-ink">
               {decodeHtmlEntities(paper.title)}
             </h3>
-            {!compact && paper.evidenceScore != null && (
-              <ScoreBadge score={paper.evidenceScore} />
-            )}
-            {compact && paper.evidenceScore != null && (
-              <span
-                className={cn("shrink-0 text-xs font-semibold tabular-nums", scoreTone(paper.evidenceScore))}
-                title={`Research Evidence Rank: ${Math.round(paper.evidenceScore)}/100 — higher means stronger study design, larger samples, and a closer match to your question.`}
-              >
-                {Math.round(paper.evidenceScore)}
-              </span>
-            )}
+            {paper.evidenceScore != null && <ScoreBadge score={paper.evidenceScore} />}
           </div>
-          {(paper.evidenceTier || paper.journal || year) && (
+          {(paper.evidenceTier || metaLine) && (
             <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
               {paper.evidenceTier && (
                 <span className="rounded-sm border border-rule bg-surface px-1.5 py-px text-[0.5625rem] font-medium uppercase tracking-wide text-ink-muted">
                   {paper.evidenceTier}
                 </span>
               )}
-              {(paper.journal || year) && (
-                <span className="text-[0.625rem] text-ink-faint">
-                  {[paper.journal, year].filter(Boolean).join(" · ")}
-                </span>
+              {metaLine && (
+                <span className="text-[0.625rem] text-ink-faint">{metaLine}</span>
               )}
             </div>
           )}
-          {!compact && paper.abstract && (
+          {paper.abstract && (
             <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-ink-muted">
               {decodeHtmlEntities(paper.abstract)}
             </p>

@@ -14,6 +14,7 @@ import { usePaperQuery } from "@/hooks/use-paper-query";
 import { decodeHtmlEntities, isAnalysisReady } from "@/lib/analysis-utils";
 import { getEvidence } from "@/lib/api/client";
 import { formatApaCitation, formatRisRecord } from "@/lib/citations/format-citation";
+import { RER_NAME, RER_SHORT } from "@/lib/content/rer";
 import { useQuery } from "@tanstack/react-query";
 
 export default function PaperPage() {
@@ -78,7 +79,7 @@ export default function PaperPage() {
           {paper.journal && (
             <p className="font-mono text-[0.6875rem] uppercase tracking-wider text-ink-faint">
               {paper.journal}
-              {paper.publicationDate ? ` · ${paper.publicationDate.slice(0, 10)}` : ""}
+              {paper.publicationDate ? `, ${paper.publicationDate.slice(0, 10)}` : ""}
             </p>
           )}
           <div className="mt-3">
@@ -126,30 +127,139 @@ export default function PaperPage() {
 
           <TabsContent value="evidence">
             {evidence ? (
-              <div className="space-y-4 text-sm">
-                <p className="font-serif text-4xl font-medium text-accent">
-                  {Math.round(evidence.score)}
-                  <span className="text-lg text-ink-faint">/100</span>
-                </p>
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border border-rule bg-surface-elevated p-4">
-                  <dt className="text-ink-faint">Study type</dt>
-                  <dd className="font-mono text-ink">+{evidence.studyTypeScore}</dd>
-                  <dt className="text-ink-faint">Sample size</dt>
-                  <dd className="font-mono text-ink">+{evidence.sampleSizeScore}</dd>
-                  <dt className="text-ink-faint">Recency</dt>
-                  <dd className="font-mono text-ink">+{evidence.recencyScore}</dd>
-                  <dt className="text-ink-faint">Quality</dt>
-                  <dd className="font-mono text-ink">
-                    {evidence.biasScore >= 0 ? "+" : ""}
-                    {evidence.biasScore}
-                  </dd>
-                </dl>
-                {evidence.reasoning && (
-                  <p className="leading-relaxed text-ink-muted">{evidence.reasoning}</p>
-                )}
-              </div>
+              (() => {
+                // Plain-language breakdown of the evidence score. Component maxima
+                // come straight from src/lib/services/evidence-scoring.ts:
+                //   study design  max 30 (meta-analysis / systematic review)
+                //   sample size   max 25 (>= 1000 participants)
+                //   recency       max 20 (published within 5 years)
+                //   rigor / bias  best 20 (reputable journal, no penalties); can go negative
+                const overall = Math.round(evidence.score);
+                const overallMeaning =
+                  overall >= 70
+                    ? "Strong evidence"
+                    : overall >= 40
+                      ? "Moderate evidence"
+                      : "Early or limited evidence";
+
+                const factors: {
+                  name: string;
+                  descriptor: string;
+                  value: number;
+                  max: number | null;
+                }[] = [
+                  {
+                    name: "Study design",
+                    descriptor:
+                      evidence.studyTypeScore >= 30
+                        ? "Review of many studies, the strongest kind"
+                        : evidence.studyTypeScore >= 25
+                          ? "Randomized trial, a rigorous design"
+                          : evidence.studyTypeScore >= 15
+                            ? "Group-followed (cohort) study"
+                            : evidence.studyTypeScore > 0
+                              ? "A single observation or case"
+                              : "Design not clearly stated",
+                    value: evidence.studyTypeScore,
+                    max: 30,
+                  },
+                  {
+                    name: "Number of people studied",
+                    descriptor:
+                      evidence.sampleSizeScore >= 25
+                        ? "Very large group (1,000+ people)"
+                        : evidence.sampleSizeScore >= 20
+                          ? "Large group (500+ people)"
+                          : evidence.sampleSizeScore >= 10
+                            ? "Moderate group (100+ people)"
+                            : "Small or unstated number of people",
+                    value: evidence.sampleSizeScore,
+                    max: 25,
+                  },
+                  {
+                    name: "How recent",
+                    descriptor:
+                      evidence.recencyScore >= 20
+                        ? "Published within the last 5 years"
+                        : "Older than 5 years",
+                    value: evidence.recencyScore,
+                    max: 20,
+                  },
+                  {
+                    name: "Rigor / bias control",
+                    descriptor:
+                      evidence.biasScore >= 20
+                        ? "Reputable journal, no major red flags"
+                        : evidence.biasScore > 0
+                          ? "Some safeguards, with a few concerns"
+                          : evidence.biasScore === 0
+                            ? "Limited information on rigor"
+                            : "Concerns noted (e.g. small sample or conflicts)",
+                    value: evidence.biasScore,
+                    max: 20,
+                  },
+                ];
+
+                return (
+                  <div className="space-y-5 text-sm">
+                    <div>
+                      <p className="label-caps mb-1">{RER_SHORT} score</p>
+                      <p className="text-xs text-ink-faint">
+                        {RER_NAME}: Synapse&apos;s custom 0–100 evidence rank (study design,
+                        sample, recency, rigor).
+                      </p>
+                      <p className="mt-2 font-serif text-4xl font-medium text-accent">
+                        {overall}
+                        <span className="text-lg text-ink-faint">/100</span>
+                      </p>
+                      <p className="mt-1 text-ink-muted">{overallMeaning}</p>
+                    </div>
+
+                    <dl className="space-y-3 border border-rule bg-surface-elevated p-4">
+                      {factors.map((f) => {
+                        const fill =
+                          f.max != null
+                            ? Math.round(Math.max(0, Math.min(1, f.value / f.max)) * 100)
+                            : null;
+                        return (
+                          <div key={f.name} className="space-y-1.5">
+                            <div className="flex items-baseline justify-between gap-3">
+                              <dt className="font-medium text-ink">{f.name}</dt>
+                              <dd className="font-mono text-xs text-ink-faint">
+                                {f.value >= 0 ? "+" : ""}
+                                {f.value}
+                                {f.max != null && (
+                                  <span className="text-ink-faint">{` / ${f.max}`}</span>
+                                )}
+                              </dd>
+                            </div>
+                            <p className="text-ink-muted">{f.descriptor}</p>
+                            {fill != null && (
+                              <div
+                                className="h-1.5 w-full overflow-hidden rounded-sm bg-rule/40"
+                                role="presentation"
+                              >
+                                <div
+                                  className="h-full rounded-sm bg-accent"
+                                  style={{ width: `${fill}%` }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </dl>
+
+                    {evidence.reasoning && (
+                      <p className="leading-relaxed text-ink-faint">{evidence.reasoning}</p>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
-              <p className="text-sm text-ink-muted">Run analysis to generate an evidence score.</p>
+              <p className="text-sm text-ink-muted">
+                Run analysis to generate a detailed {RER_SHORT} evidence score.
+              </p>
             )}
           </TabsContent>
 
@@ -158,13 +268,13 @@ export default function PaperPage() {
               {paper.analysis?.methodology && <p>{paper.analysis.methodology}</p>}
               {paper.analysis?.sampleSize && (
                 <p>
-                  <span className="font-medium text-ink">Sample size · </span>
+                  <span className="font-medium text-ink">Sample size: </span>
                   {paper.analysis.sampleSize}
                 </p>
               )}
               {paper.analysis?.population && (
                 <p>
-                  <span className="font-medium text-ink">Population · </span>
+                  <span className="font-medium text-ink">Population: </span>
                   {paper.analysis.population}
                 </p>
               )}
@@ -183,7 +293,14 @@ export default function PaperPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigator.clipboard.writeText(formatApaCitation(paper))}
+                  onClick={async () => {
+                    const text = formatApaCitation(paper);
+                    try {
+                      await navigator.clipboard.writeText(text);
+                    } catch {
+                      window.prompt("Copy citation:", text);
+                    }
+                  }}
                 >
                   Copy APA
                 </Button>

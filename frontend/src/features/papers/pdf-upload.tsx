@@ -6,6 +6,18 @@ import { useCallback, useState } from "react";
 import { uploadPaper } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
+const PDF_MAX_MB = 25;
+
+function validatePdfClient(file: File): string | null {
+  if (file.size > PDF_MAX_MB * 1024 * 1024) {
+    return `PDF must be under ${PDF_MAX_MB} MB. Choose a smaller file.`;
+  }
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    return "Only PDF files are accepted.";
+  }
+  return null;
+}
+
 interface PdfUploadProps {
   className?: string;
   compact?: boolean;
@@ -20,6 +32,11 @@ export function PdfUpload({ className, compact }: PdfUploadProps) {
   const handleFile = useCallback(
     async (file: File) => {
       setError(null);
+      const validationError = validatePdfClient(file);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
       setUploading(true);
       try {
         const result = await uploadPaper(file);
@@ -58,7 +75,7 @@ export function PdfUpload({ className, compact }: PdfUploadProps) {
         <p className="text-sm text-ink-muted">
           {uploading ? "Uploading and extracting text…" : "Drop a PDF here, or choose a file"}
         </p>
-        <p className="mt-1 text-xs text-ink-faint">Max 25 MB · analysis starts automatically</p>
+        <p className="mt-1 text-xs text-ink-faint">PDF only, max 25 MB. Analysis starts automatically.</p>
         <label className="mt-4 inline-block cursor-pointer rounded-sm border border-rule bg-surface-elevated px-4 py-2 text-sm font-medium text-ink hover:border-accent-muted">
           <input
             type="file"

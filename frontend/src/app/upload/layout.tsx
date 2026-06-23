@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Upload & Analyze PDF",
   description:
-    "Upload a research PDF for AI-powered summary, evidence scoring, and grounded Q&A with Synapse.",
+    "Upload a research PDF for summary, evidence scoring, and Q&A grounded in the paper text.",
   alternates: { canonical: "/upload" },
 };
 

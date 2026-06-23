@@ -134,3 +134,6 @@ RTK.md
 *.pem
 *.key
 *.crt
+.vercel
+.serena/
+frontend/.playwright-cli/

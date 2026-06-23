@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { config } from "@/lib/config";
 import { detectConflictsBetweenPapers } from "@/lib/services/conflicts";
-import { getClientIp, rateLimit } from "@/lib/security/rate-limit";
+import { getClientIp, rateLimitAsync } from "@/lib/security/rate-limit";
 
 export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const { allowed } = rateLimit(`conflicts:${ip}`, Math.floor(config.rateLimitPerMinute / 2));
+  const { allowed } = await rateLimitAsync(`conflicts:${ip}`, Math.floor(config.rateLimitPerMinute / 2));
   if (!allowed) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }

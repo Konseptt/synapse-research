@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -51,20 +51,19 @@ export function EvidencePanel({
     [allSuggestions, usedQuestions],
   );
 
-  const isOpen = !variant || variant === "sidebar" || alwaysExpanded || expanded;
-
-  useEffect(() => {
+  const paperIdsKey = paperIds.join(",");
+  const [prevPaperIdsKey, setPrevPaperIdsKey] = useState(paperIdsKey);
+  if (prevPaperIdsKey !== paperIdsKey) {
+    setPrevPaperIdsKey(paperIdsKey);
     setUsedQuestions(new Set());
     setAnswer(null);
     setSources([]);
     setUncertainty(null);
     setError(null);
     setQuery("");
-  }, [paperIds.join(",")]);
+  }
 
-  useEffect(() => {
-    if (alwaysExpanded) setExpanded(true);
-  }, [alwaysExpanded]);
+  const isOpen = variant !== "inline" || alwaysExpanded || expanded;
 
   function askSuggested(question: string) {
     setUsedQuestions((prev) => new Set(prev).add(question));
@@ -193,7 +192,7 @@ export function EvidencePanel({
 
             {loading ? (
               <div className="space-y-2">
-                <p className="text-xs text-ink-faint">Thinking (may take ~30s)…</p>
+                <p className="text-xs text-ink-faint">Reading the studies…</p>
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
               </div>

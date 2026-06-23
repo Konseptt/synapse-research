@@ -5,8 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getPaper } from "@/lib/api/client";
 import { isAnalysisPending } from "@/lib/analysis-utils";
 
-/** Stop polling after ~5 minutes; UI should offer retry. */
-const MAX_POLLS = 90;
+/** Stop polling after ~5 minutes; aligns with PaperAnalysisSection retry UI. */
+const MAX_POLLS = 150;
 
 export function usePaperQuery(paperId: string | null) {
   return useQuery({

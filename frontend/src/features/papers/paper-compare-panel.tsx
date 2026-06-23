@@ -1,13 +1,14 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScoreBadge } from "@/components/score-badge";
-import { decodeHtmlEntities } from "@/lib/analysis-utils";
-import { comparePapers, detectConflicts } from "@/lib/api/client";
+import { decodeHtmlEntities, isAnalysisReady } from "@/lib/analysis-utils";
+import { analyzePaper, comparePapers, detectConflicts } from "@/lib/api/client";
+import { resolveDisclosure } from "@/lib/services/disclosure-extract";
 import type { ConflictPairResult, PaperDetail } from "@/types/paper";
 
 interface PaperComparePanelProps {
@@ -15,11 +16,41 @@ interface PaperComparePanelProps {
   onClear: () => void;
 }
 
+// Give up polling after this long so a stuck analysis doesn't poll forever.
+const ANALYZE_TIMEOUT_MS = 5 * 60 * 1000;
+
+function needsAnalysis(p: PaperDetail): boolean {
+  return !isAnalysisReady(p.analysis) && p.analysis?.status !== "failed";
+}
+
+function formatDisclosure(p: PaperDetail, kind: "funding" | "coi"): string {
+  const stored = kind === "funding" ? p.analysis?.funding : p.analysis?.conflictOfInterest;
+  const paperText = p.fullText ?? p.abstract ?? "";
+  const resolved = resolveDisclosure(stored, paperText, kind);
+  if (resolved) return resolved;
+  if (isAnalysisReady(p.analysis)) return "Not in abstract";
+  return "Not stated";
+}
+
 export function PaperComparePanel({ paperIds, onClear }: PaperComparePanelProps) {
+  const triggered = useRef<Set<string>>(new Set());
+  const startedAt = useRef<number | null>(null);
+  const [analyzeErrors, setAnalyzeErrors] = useState<Record<string, string>>({});
+
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["compare", paperIds],
     queryFn: () => comparePapers(paperIds),
     enabled: paperIds.length >= 2,
+    // While any paper is still being analyzed, re-poll so the table fills in.
+    refetchInterval: (query) => {
+      const list = query.state.data?.papers;
+      if (!list || list.length === 0) return false;
+      if (!list.some(needsAnalysis)) return false;
+      if (startedAt.current && Date.now() - startedAt.current > ANALYZE_TIMEOUT_MS) {
+        return false;
+      }
+      return 4000;
+    },
   });
 
   const conflictCheck = useMutation({
@@ -27,6 +58,39 @@ export function PaperComparePanel({ paperIds, onClear }: PaperComparePanelProps)
   });
 
   const papers = data?.papers ?? [];
+
+  // Opening Compare should not show a wall of "n/a": kick off analysis for any
+  // paper never analyzed, then the poll above fills the table as each finishes.
+  const toAnalyze = papers.filter(needsAnalysis).map((p) => p.id);
+  const toAnalyzeKey = toAnalyze.join(",");
+
+  useEffect(() => {
+    const fresh = toAnalyze.filter((id) => !triggered.current.has(id));
+    if (fresh.length === 0) return;
+    if (startedAt.current == null) startedAt.current = Date.now();
+    for (const id of fresh) {
+      triggered.current.add(id);
+      void analyzePaper(id).catch((err) => {
+        triggered.current.delete(id);
+        setAnalyzeErrors((prev) => ({
+          ...prev,
+          [id]: err instanceof Error ? err.message : "Analysis failed",
+        }));
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toAnalyzeKey]);
+
+  const pendingIds = new Set(toAnalyze);
+  const readingCount = toAnalyze.length;
+  const cell = (p: PaperDetail, value: ReactNode): ReactNode => {
+    if (analyzeErrors[p.id]) {
+      return <span className="text-danger text-xs">{analyzeErrors[p.id]}</span>;
+    }
+    if (pendingIds.has(p.id)) return <span className="text-ink-faint">Reading…</span>;
+    if (p.analysis?.status === "failed") return <span className="text-ink-faint">Couldn’t read this one</span>;
+    return value;
+  };
 
   return (
     <div className="space-y-4">
@@ -46,6 +110,13 @@ export function PaperComparePanel({ paperIds, onClear }: PaperComparePanelProps)
           </Button>
         </div>
       </div>
+
+      {readingCount > 0 && (
+        <p className="border border-dashed border-rule px-3 py-2 text-xs text-ink-muted">
+          Reading {readingCount} {readingCount === 1 ? "study" : "studies"}… the table fills
+          in as each one finishes. Usually 1–2 minutes.
+        </p>
+      )}
 
       {isLoading ? (
         <Skeleton className="h-48 w-full" />
@@ -70,26 +141,26 @@ export function PaperComparePanel({ paperIds, onClear }: PaperComparePanelProps)
               </tr>
             </thead>
             <tbody className="divide-y divide-rule/60">
-              <CompareRow label="Evidence" papers={papers} render={(p) =>
-                p.evidenceScore != null ? <ScoreBadge score={p.evidenceScore} /> : "n/a"
+              <CompareRow label="Evidence (RER)" papers={papers} render={(p) =>
+                cell(p, p.evidenceScore != null ? <ScoreBadge score={p.evidenceScore} /> : "n/a")
               } />
               <CompareRow label="Methods" papers={papers} render={(p) =>
-                p.analysis?.methodology ?? "Not analyzed"
+                cell(p, p.analysis?.methodology ?? "n/a")
               } />
               <CompareRow label="Sample" papers={papers} render={(p) =>
-                p.analysis?.sampleSize ?? "n/a"
+                cell(p, p.analysis?.sampleSize ?? "n/a")
               } />
               <CompareRow label="Population" papers={papers} render={(p) =>
-                p.analysis?.population ?? "n/a"
+                cell(p, p.analysis?.population ?? "n/a")
               } />
               <CompareRow label="Key findings" papers={papers} render={(p) =>
-                p.analysis?.findings?.slice(0, 3).join("; ") ?? "n/a"
+                cell(p, p.analysis?.findings?.slice(0, 3).join("; ") ?? "n/a")
               } />
               <CompareRow label="Funding" papers={papers} render={(p) =>
-                p.analysis?.funding ?? "Not stated"
+                cell(p, formatDisclosure(p, "funding"))
               } />
               <CompareRow label="Conflicts of interest" papers={papers} render={(p) =>
-                p.analysis?.conflictOfInterest ?? "Not stated"
+                cell(p, formatDisclosure(p, "coi"))
               } />
             </tbody>
           </table>
@@ -139,7 +210,7 @@ function ConflictResults({ pairs }: { pairs: ConflictPairResult[] }) {
           }`}
         >
           <p className="font-medium text-ink">
-            {pair.agreement ? "Mostly agree" : "Disagree or differ"}
+            {pair.agreement ? "Findings agree" : "Findings differ"}
           </p>
           <p className="mt-1 text-xs text-ink-muted">
             {decodeHtmlEntities(pair.paperATitle.slice(0, 60))} vs{" "}

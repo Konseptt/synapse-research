@@ -147,8 +147,8 @@ describe("rankPapers — reason string", () => {
     // Sample size is rendered with en-US grouping and a ≈ prefix.
     expect(first.reason).toContain("n≈12,000");
     expect(first.reason).toContain("2021");
-    // Parts are joined with " · ".
-    expect(first.reason).toBe("Meta-analysis · n≈12,000 · 2021");
+    // Parts are joined with ", ".
+    expect(first.reason).toBe("Meta-analysis, n≈12,000, 2021");
   });
 });
 

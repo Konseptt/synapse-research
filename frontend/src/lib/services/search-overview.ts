@@ -8,6 +8,7 @@ import { TTL, cacheKey, turboGetAsync, turboSetAsync } from "@/lib/cache/turbo-c
 import { db } from "@/lib/db";
 import { paperAnalyses, papers } from "@/lib/db/schema";
 import { buildHeuristicOverview } from "@/lib/search/heuristic-overview";
+import { RESEARCH_SUMMARY_DISCLAIMER } from "@/lib/content/public-topics";
 import type { PaperSummary, SearchOverviewResponse } from "@/types/paper";
 
 const MAX_SOURCES = 3;
@@ -127,7 +128,7 @@ async function computeAiOverview(
       verdictLabel: overview.verdict_label,
       sources: heuristic.sources,
       uncertainty: overview.uncertainty,
-      disclaimer: "This is research synthesis, not medical advice.",
+      disclaimer: RESEARCH_SUMMARY_DISCLAIMER,
       generatedBy: "ai",
     };
     await turboSetAsync(ck, result, TTL.overview);

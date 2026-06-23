@@ -6,6 +6,10 @@ import { config } from "@/lib/config";
 import { db } from "@/lib/db";
 import { evidenceScores, paperAnalyses, papers } from "@/lib/db/schema";
 import { scoreEvidence } from "@/lib/services/evidence-scoring";
+import {
+  extractConflictOfInterest,
+  extractFunding,
+} from "@/lib/services/disclosure-extract";
 import { indexPaperChunks } from "@/lib/services/rag";
 
 const inflight = new Map<string, Promise<void>>();
@@ -91,6 +95,9 @@ async function runAnalysis(paperId: string, options?: { force?: boolean }): Prom
   const findings = summary.findings ?? [];
   const limitations = summary.limitations?.join("; ") ?? null;
   const completedAt = new Date();
+  const conflictOfInterest =
+    summary.conflict_of_interest?.trim() || extractConflictOfInterest(text) || null;
+  const funding = summary.funding?.trim() || extractFunding(text) || null;
 
   await db
     .insert(paperAnalyses)
@@ -105,8 +112,8 @@ async function runAnalysis(paperId: string, options?: { force?: boolean }): Prom
       confidenceScore: summary.confidence,
       findings,
       plainSummary: summary.plain_summary,
-      conflictOfInterest: summary.conflict_of_interest,
-      funding: summary.funding,
+      conflictOfInterest,
+      funding,
       status: "complete",
       updatedAt: completedAt,
     })
@@ -122,8 +129,8 @@ async function runAnalysis(paperId: string, options?: { force?: boolean }): Prom
         confidenceScore: summary.confidence,
         findings,
         plainSummary: summary.plain_summary,
-        conflictOfInterest: summary.conflict_of_interest,
-        funding: summary.funding,
+        conflictOfInterest,
+        funding,
         status: "complete",
         updatedAt: completedAt,
       },
@@ -146,8 +153,8 @@ async function runAnalysis(paperId: string, options?: { force?: boolean }): Prom
       confidenceScore: summary.confidence,
       findings,
       plainSummary: summary.plain_summary,
-      conflictOfInterest: summary.conflict_of_interest,
-      funding: summary.funding,
+      conflictOfInterest,
+      funding,
       status: "complete",
     },
   );

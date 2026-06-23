@@ -1,7 +1,8 @@
 import { eq, inArray, sql } from "drizzle-orm";
 
-import { TTL, cacheKey, turboGet, turboSet } from "@/lib/cache/turbo-cache";
+import { TTL, cacheKey, turboGetAsync, turboSetAsync } from "@/lib/cache/turbo-cache";
 import { chatCompletion, embedText } from "@/lib/ai/providers/nvidia";
+import { RESEARCH_SUMMARY_DISCLAIMER } from "@/lib/content/public-topics";
 import { toPgVectorLiteral } from "@/lib/db/pgvector";
 import { db } from "@/lib/db";
 import { paperAnalyses, paperChunks, papers } from "@/lib/db/schema";
@@ -175,7 +176,7 @@ export async function researchChat(
   paperIds: string[],
 ): Promise<ResearchChatResponse> {
   const ck = cacheKey(["chat", query.toLowerCase().trim(), ...[...paperIds].sort()]);
-  const cached = turboGet<ResearchChatResponse>(ck);
+  const cached = await turboGetAsync<ResearchChatResponse>(ck);
   if (cached) return cached;
 
   let chunks: Array<{ paperId: string; content: string; title: string }> = [];
@@ -195,7 +196,7 @@ export async function researchChat(
       answer: "No text available for these papers yet. Run analysis or upload PDFs first.",
       sources: [],
       uncertainty: "No abstract or analysis found.",
-      disclaimer: "This is research synthesis, not medical advice.",
+      disclaimer: RESEARCH_SUMMARY_DISCLAIMER,
     };
   }
 
@@ -210,8 +211,8 @@ export async function researchChat(
       {
         role: "system",
         content: multiPaper
-          ? "You synthesize biomedical research across multiple papers. Compare findings, note agreements and disagreements, and cite each paper with [1], [2] notation. Be precise; say when evidence is mixed or insufficient. Keep answers concise (3-6 sentences)."
-          : "You are a biomedical research assistant. Answer clearly using only the provided context. Cite sources with [1] notation. Do not give personal medical advice. Keep answers concise (3-6 sentences).",
+          ? "You answer a health or science question for a curious non-expert by comparing several studies. Lead with the direct answer in plain words, then say where the studies agree or disagree. Everyday language, short sentences, 3-6 total. Cite each study as [1], [2]. If the evidence is thin or mixed, say so plainly. Never write 'studies suggest', 'research shows', 'it is important to note', 'plays a vital/crucial role', or 'more/further research is needed'. No medical advice."
+          : "You answer a health or science question for a curious non-expert, using only the provided study text. Lead with the direct answer in plain words. Everyday language, short sentences, 3-6 total. Cite the source as [1]. If the study does not really answer the question, say so plainly. Never write 'studies suggest', 'research shows', 'it is important to note', 'plays a vital/crucial role', or 'more/further research is needed'. No medical advice.",
       },
       {
         role: "user",
@@ -236,10 +237,10 @@ export async function researchChat(
         : chunks.length < 2 && multiPaper
           ? "Limited context across papers."
           : null,
-    disclaimer: "This is research synthesis, not medical advice.",
+    disclaimer: RESEARCH_SUMMARY_DISCLAIMER,
   };
 
-  turboSet(ck, result, TTL.chat);
+  await turboSetAsync(ck, result, TTL.chat);
   return result;
 }
 

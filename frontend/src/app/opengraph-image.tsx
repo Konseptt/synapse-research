@@ -17,7 +17,7 @@ export default function OpenGraphImage() {
           flexDirection: "column",
           justifyContent: "center",
           padding: "72px",
-          background: "linear-gradient(145deg, #f7f4ed 0%, #ede8dc 45%, #dceee9 100%)",
+          background: "#f7f4ed",
           fontFamily: "Georgia, serif",
         }}
       >
@@ -63,7 +63,7 @@ export default function OpenGraphImage() {
           Health questions, answered from real published studies
         </p>
         <p style={{ fontSize: 22, color: "#5e5a52", marginTop: 24 }}>
-          PubMed search · Evidence ranking · Instant summaries
+          PubMed search, evidence ranking, quick summaries
         </p>
       </div>
     ),
