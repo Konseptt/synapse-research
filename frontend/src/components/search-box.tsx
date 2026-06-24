@@ -74,6 +74,7 @@ export function SearchBox({
         <Input
           ref={inputRef}
           autoFocus={autoFocus}
+          aria-label="Search questions or topics"
           placeholder={SEARCH_PLACEHOLDERS[placeholderIndex]}
           value={value}
           onChange={(e) => {

@@ -17,6 +17,8 @@ export function SearchFiltersPanel({ filters, onChange }: SearchFiltersProps) {
     <div>
       <button
         type="button"
+        aria-expanded={open}
+        aria-controls="search-filters-content"
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between text-left"
       >
@@ -25,9 +27,10 @@ export function SearchFiltersPanel({ filters, onChange }: SearchFiltersProps) {
       </button>
 
       {open && (
-        <div className="mt-3 space-y-3">
+        <div id="search-filters-content" className="mt-3 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <Input
+              aria-label="Year from"
               placeholder="Year from"
               type="number"
               value={filters.yearFrom ?? ""}
@@ -36,6 +39,7 @@ export function SearchFiltersPanel({ filters, onChange }: SearchFiltersProps) {
               }
             />
             <Input
+              aria-label="Year to"
               placeholder="Year to"
               type="number"
               value={filters.yearTo ?? ""}
@@ -45,11 +49,13 @@ export function SearchFiltersPanel({ filters, onChange }: SearchFiltersProps) {
             />
           </div>
           <Input
+            aria-label="Journal name contains"
             placeholder="Journal contains…"
             value={filters.journal ?? ""}
             onChange={(e) => onChange({ journal: e.target.value || undefined })}
           />
           <Input
+            aria-label="Study type"
             placeholder="Study type (e.g. RCT, meta-analysis, clinical trial)"
             value={filters.studyType ?? ""}
             onChange={(e) => onChange({ studyType: e.target.value || undefined })}

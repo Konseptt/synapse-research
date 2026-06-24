@@ -1,0 +1,3 @@
+## 2025-06-24 - Accessible Inputs
+**Learning:** Found a pattern of relying exclusively on `placeholder` text for input context across the app (search, filters, evidence panel, graph page). Screen readers do not always reliably announce placeholder text as the input label, which can lead to accessibility barriers.
+**Action:** Always ensure inputs without explicit visible `<label>`s use `aria-label` attribute to provide clear, accessible context for screen readers.

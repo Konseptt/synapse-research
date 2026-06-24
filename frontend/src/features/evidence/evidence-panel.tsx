@@ -251,6 +251,7 @@ export function EvidencePanel({
           >
             <div className="flex gap-2">
               <Input
+                aria-label={multiPaper ? "Ask a question about these studies" : "Ask a question about this study"}
                 placeholder={multiPaper ? "Ask about these studies…" : "Your question…"}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
