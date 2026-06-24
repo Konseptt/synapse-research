@@ -16,6 +16,10 @@ export function isAnalysisPending(analysis: PaperAnalysis | null | undefined): b
 }
 
 export function decodeHtmlEntities(text: string): string {
+  // ⚡ Bolt optimization: Fast path skip to prevent running 6 expensive
+  // regex replacements on plain strings without HTML entities.
+  if (!text || !text.includes("&")) return text;
+
   return text
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
     .replace(/&#(\d+);/g, (_, num) => String.fromCodePoint(parseInt(num, 10)))
