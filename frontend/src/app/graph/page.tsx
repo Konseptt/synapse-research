@@ -48,6 +48,7 @@ function GraphPageContent() {
     <div className="flex h-[calc(100vh-3.5rem)] min-h-0 w-full flex-col overflow-hidden bg-surface-elevated">
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-rule bg-paper px-5 py-3 lg:px-8">
         <Input
+          aria-label="Topic to build graph for"
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && buildGraph()}
