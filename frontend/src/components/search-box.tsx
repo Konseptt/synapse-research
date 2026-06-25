@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,23 +31,25 @@ export function SearchBox({
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [open, setOpen] = useState(false);
 
-  const suggestions = (() => {
+  // Memoize to prevent recalculation every 4s when placeholderIndex cycles
+  const suggestions = useMemo(() => {
     if (!showSuggestions || value.trim().length === 0) return [];
     try {
       return getSearchSuggestions(value, 6);
     } catch {
       return [];
     }
-  })();
+  }, [value, showSuggestions]);
 
-  const preview = (() => {
+  // Memoize to prevent recalculation every 4s when placeholderIndex cycles
+  const preview = useMemo(() => {
     if (value.trim().length <= 2) return null;
     try {
       return expandSearchQuery(value);
     } catch {
       return null;
     }
-  })();
+  }, [value]);
 
   useEffect(() => {
     const timer = setInterval(() => {
