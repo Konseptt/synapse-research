@@ -22,10 +22,12 @@ export async function chatCompletion(
 ): Promise<string> {
   assertAiConfigured();
   const response = await getNvidiaClient().chat.completions.create({
-    model: config.nvidiaModel,
+    model: "meta/llama-3.3-70b-instruct",
     messages,
-    temperature: options?.temperature ?? 0.2,
-    max_tokens: options?.maxTokens ?? 4096,
+    temperature: 0.2,
+    top_p: 0.7,
+    max_tokens: 1024,
+    stream: false,
     ...(options?.jsonMode ? { response_format: { type: "json_object" as const } } : {}),
   });
 

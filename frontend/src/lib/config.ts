@@ -1,7 +1,7 @@
 export const config = {
   nvidiaApiKey: process.env.NVIDIA_API_KEY ?? "",
   nvidiaBaseUrl: process.env.NVIDIA_BASE_URL ?? "https://integrate.api.nvidia.com/v1",
-  nvidiaModel: process.env.NVIDIA_MODEL ?? "meta/llama-3.3-70b-instruct",
+  nvidiaModel: "meta/llama-3.3-70b-instruct",
   nvidiaEmbeddingModel: process.env.NVIDIA_EMBEDDING_MODEL ?? "nvidia/nv-embedqa-e5-v5",
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379/0",
   jwtSecret: process.env.JWT_SECRET ?? "change-me-in-production",
