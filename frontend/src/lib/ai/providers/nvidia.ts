@@ -22,10 +22,10 @@ export async function chatCompletion(
 ): Promise<string> {
   assertAiConfigured();
   const response = await getNvidiaClient().chat.completions.create({
-    model: "meta/llama-3.3-70b-instruct",
+    model: "moonshotai/kimi-k3",
     messages,
-    temperature: 0.2,
-    top_p: 0.7,
+    temperature: 1,
+    top_p: 0.95,
     max_tokens: 1024,
     stream: false,
     ...(options?.jsonMode ? { response_format: { type: "json_object" as const } } : {}),
