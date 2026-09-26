@@ -6,6 +6,12 @@ import { config } from "@/lib/config";
 
 let client: OpenAI | null = null;
 
+function usableReply(text: string | null | undefined): string {
+  const trimmed = text?.trim() ?? "";
+  if (!trimmed || /^!+$/.test(trimmed)) return "";
+  return trimmed;
+}
+
 export function getNvidiaClient(): OpenAI {
   if (!client || (config.nvidiaApiKey && client.apiKey !== config.nvidiaApiKey)) {
     client = new OpenAI({
@@ -28,10 +34,14 @@ export async function chatCompletion(
     top_p: 0.95,
     max_tokens: 1024,
     stream: false,
+    reasoning_effort: "low",
     ...(options?.jsonMode ? { response_format: { type: "json_object" as const } } : {}),
-  });
+  } as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming);
 
-  const content = response.choices[0]?.message?.content;
+  const message = response.choices[0]?.message as
+    | { content?: string | null; reasoning_content?: string | null }
+    | undefined;
+  const content = usableReply(message?.content) || usableReply(message?.reasoning_content);
   if (!content) throw new Error("Empty response from NVIDIA API");
   return content;
 }
